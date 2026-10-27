@@ -18,7 +18,7 @@
 
   /* Text on cream */
   --color-carbon-text: #09090a;
-  --color-muted: #7a766f; /* secondary text on cream */
+  --color-muted: #57534e; /* secondary text on cream — 6.8:1 on cream, WCAG AA */
 
   /* Text on dark (Tailwind neutral scale for the rest) */
   --color-paper: #f4f1ea;

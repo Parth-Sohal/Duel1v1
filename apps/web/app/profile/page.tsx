@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation';
 import { SplitShell } from '../../components/SplitShell';
-import { Chip, Eyebrow, Headline } from '../../components/ui';
+import { Eyebrow, Headline, RadarSkeleton, Stat } from '../../components/ui';
 import { getCurrentUser } from '../../lib/session';
 
 /**
  * Profile (docs/ui/screens.md §3, Iteration 1 scope): left half with name,
- * chips (rating, wins/losses — no rank title yet, decision D8) and an empty
- * state; right half is empty states in the same style. No sample data.
+ * a stat row, and the radar skeleton; right half is the activity empty
+ * state with a Find-a-match CTA. No sample data.
  */
 export default async function ProfilePage() {
   const user = await getCurrentUser();
@@ -21,23 +21,26 @@ export default async function ProfilePage() {
           <div className="mb-4">
             <Eyebrow marker="square">Player profile</Eyebrow>
           </div>
-          <Headline className="mb-6 text-7xl sm:text-8xl md:text-9xl">{user.displayName}</Headline>
+          <Headline className="mb-8 min-w-0 text-[clamp(2.5rem,6vw,4.5rem)]">
+            {user.displayName}
+          </Headline>
 
-          <div className="flex flex-wrap gap-2">
-            <Chip>Rating {user.points.toLocaleString('en-US')}</Chip>
-            <Chip>
-              {user.wins} wins / {user.losses} losses
-            </Chip>
-            <Chip variant="accent">{user.draws} draws</Chip>
+          {/* Stat row: big numbers, small labels */}
+          <div className="grid max-w-md grid-cols-2 gap-x-6 gap-y-8 border-t border-line-light pt-6 sm:grid-cols-4">
+            <Stat label="Rating" value={user.points.toLocaleString('en-US')} />
+            <Stat label="Wins" value={user.wins} />
+            <Stat label="Losses" value={user.losses} />
+            <Stat label="Draws" value={user.draws} />
           </div>
 
-          {/* Skill map arrives in Iteration 5 (needs skill snapshots). Empty state, no fake data. */}
-          <div className="mt-10 border-t border-line-light/80 pt-6">
-            <span className="mb-3 block font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-muted">
-              Skill map:
+          {/* Skill radar: designed empty state until skill snapshots exist (Iteration 5) */}
+          <div className="mt-10 max-w-md border-t border-line-light/80 pt-6">
+            <span className="mb-4 block font-mono text-xs font-semibold uppercase tracking-[0.1em] text-muted">
+              Skill map
             </span>
-            <div className="border border-line-light bg-sand/50 p-5">
-              <p className="font-mono text-xs uppercase leading-relaxed tracking-[0.15em] text-muted">
+            <div className="flex items-center gap-6 border border-line-light bg-sand/50 p-6">
+              <RadarSkeleton />
+              <p className="font-grotesk text-sm leading-relaxed text-muted">
                 The radar unlocks after your first duels. Every duel sharpens it.
               </p>
             </div>
@@ -45,28 +48,51 @@ export default async function ProfilePage() {
         </>
       }
       right={
-        <div className="mx-auto my-auto w-full max-w-md py-8">
-          <div className="mb-6">
+        <div className="mx-auto w-full max-w-md">
+          <div className="mb-4">
             <Eyebrow dark marker="notch">
               Activity
             </Eyebrow>
           </div>
-          <h2 className="mb-4 font-headline text-4xl font-extrabold uppercase leading-[0.95] tracking-tight text-white sm:text-5xl">
+          <h2 className="mb-3 font-headline text-4xl font-extrabold uppercase leading-[0.95] tracking-tight text-cream sm:text-5xl">
             No duels yet.
           </h2>
-          <p className="font-mono text-xs uppercase leading-relaxed tracking-[0.18em] text-neutral-400">
+          <p className="mb-8 font-grotesk text-sm leading-relaxed text-neutral-300">
             Win your first duel to start the streak, rivals, and badges.
           </p>
 
-          <div className="mt-10 border border-line-dark bg-surface/80 p-4">
-            <div className="mb-3 flex items-center justify-between border-b border-neutral-800 pb-2 font-mono text-[11px]">
-              <span className="flex items-center gap-2 text-neutral-400">
-                <span aria-hidden className="inline-block h-1.5 w-1.5 bg-accent" />
-                <span className="uppercase tracking-[0.2em]">Next unlock</span>
+          {/* Primary CTA — matchmaking arrives with the duel screens (Iteration 3) */}
+          <button
+            type="button"
+            disabled
+            title="Matchmaking arrives in Iteration 3"
+            className="group flex w-full cursor-not-allowed items-center justify-between gap-3.5 border border-carbon/40 bg-accent p-1.5 pr-5 text-left opacity-80"
+          >
+            <span className="flex items-center gap-3.5">
+              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center bg-carbon font-mono text-sm font-bold text-accent">
+                ⚔
               </span>
-              <span className="text-[10px] uppercase tracking-widest text-neutral-600">Iteration 3</span>
+              <span className="font-mono text-sm font-bold tracking-[0.05em] text-carbon">
+                Find a match
+              </span>
+            </span>
+            <span aria-hidden className="font-mono text-xs text-carbon">➔</span>
+          </button>
+          <p className="mt-2 font-grotesk text-sm text-neutral-400">
+            Matchmaking is coming soon — duels start in the next build.
+          </p>
+
+          <div className="mt-8 border border-line-dark bg-surface/80 p-4">
+            <div className="mb-3 flex items-center justify-between border-b border-neutral-800 pb-2 font-mono text-xs">
+              <span className="flex items-center gap-2 text-neutral-300">
+                <span aria-hidden className="inline-block h-1.5 w-1.5 bg-accent" />
+                <span className="font-semibold uppercase tracking-[0.1em]">Next unlock</span>
+              </span>
+              <span className="text-[10px] uppercase tracking-[0.1em] text-neutral-400">
+                Streak · Rivals · Badges
+              </span>
             </div>
-            <p className="font-mono text-xs uppercase leading-relaxed tracking-[0.15em] text-neutral-400">
+            <p className="font-grotesk text-sm leading-relaxed text-neutral-300">
               Duels, streaks, rivals, and badges arrive with matchmaking.
             </p>
           </div>

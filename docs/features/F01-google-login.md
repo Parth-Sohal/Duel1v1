@@ -15,12 +15,14 @@ A player can sign in with Google, stay signed in across refreshes, and sign out.
 
 ## UI
 
-- Login page (from the owner's design): Google sign-in button, arena branding.
-- Header (from the owner's design): avatar + display name when signed in, sign-out control; plain "Sign in" link when not.
+- Login page (owner brutalist design, 2026-10-27): split 7/5 layout, "SIGN IN." hero, dark auth portal with a custom primary Google button, protocol card, rules ticker.
+- Header (owner design): logo `{ duel }`, SKILL MAP nav, user chip when signed in, SIGN IN link when not; mobile collapses to a menu.
 
 ## Behavior
 
-- Web loads Google Identity Services and sends the ID token to `POST /api/auth/google`.
+- Web redirects the player to Google's OAuth authorize endpoint (`response_type=id_token`) from a real primary button (native hover/focus states); Google returns to `/auth/callback` with the ID token in the URL fragment.
+- A per-login random `state` is stored in `sessionStorage` and verified in the callback (login-CSRF guard).
+- Web sends the ID token to `POST /api/auth/google`.
 - Server verifies the token **with Google** (JWKS, `aud` = our client ID, unexpired). Profile fields in the request body are never trusted.
 - Find-or-create `users` row keyed on `google_id`; first login creates the user with `display_name` from Google (clamped to 2–30 chars) and `avatar_url` from the Google picture.
 - Server creates a session row: random 32-byte token, **only its SHA-256 hash** stored in `sessions.token_hash`; sets `expires_at = now() + 30 days`.
@@ -48,7 +50,10 @@ Migration 0001 creates `users` and `sessions` exactly per `docs/data-model.md` �
 - Session token never stored raw; hash only. Cookie HTTP-only (not readable by JS).
 - Email is stored for uniqueness but never exposed to other players.
 - Token verification failure → 401, logged with a request ID, no user row touched.
-- No secrets in git; `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` added to `.env.example`. `SESSION_SECRET` removed from `.env.example` (not needed — DB-backed sessions, no signed JWT).
+- Login-CSRF: the OAuth `state` is random per login and verified in the callback.
+- Google Console (Web application client) must list the redirect URIs:
+  `http://localhost:3000/auth/callback` and `https://duel1v1.vercel.app/auth/callback`.
+- No secrets in git; `GOOGLE_CLIENT_ID` (server) and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (web) added to `.env.example`. `SESSION_SECRET` and the client secret are not needed (ID-token verification uses Google's public JWKS).
 
 ## Test checklist
 
