@@ -1,45 +1,40 @@
 import type { Metadata } from 'next';
-import { Anton, Barlow_Condensed, IBM_Plex_Mono, Plus_Jakarta_Sans } from 'next/font/google';
-import { APP_NAME } from '@coding-arena/shared';
+import { Syne, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
-// Fonts per docs/ui/design-tokens.md §2.
-const anton = Anton({
-  weight: '400',
+// Fonts from the owner's brutalist login design (2026-10-27).
+const syne = Syne({
+  weight: ['700', '800'],
   subsets: ['latin'],
-  variable: '--font-anton',
+  variable: '--font-syne',
   display: 'swap',
 });
 
-const barlow = Barlow_Condensed({
-  weight: ['600', '700', '800'],
+const grotesk = Space_Grotesk({
+  weight: ['500', '700'],
   subsets: ['latin'],
-  variable: '--font-barlow',
+  variable: '--font-grotesk',
   display: 'swap',
 });
 
-const plexMono = IBM_Plex_Mono({
-  weight: ['400', '500', '600', '700'],
+const jbMono = JetBrains_Mono({
+  weight: ['400', '500', '700', '800'],
   subsets: ['latin'],
-  variable: '--font-plex-mono',
-  display: 'swap',
-});
-
-const jakarta = Plus_Jakarta_Sans({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  variable: '--font-jakarta',
+  variable: '--font-jbmono',
   display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: APP_NAME,
+  title: {
+    default: '{ duel } — Coding Arena',
+    template: '%s — { duel }',
+  },
   description: 'Two players, one challenge, ten minutes. Race to pass all tests.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${anton.variable} ${barlow.variable} ${plexMono.variable} ${jakarta.variable}`}>
+    <html lang="en" className={`${syne.variable} ${grotesk.variable} ${jbMono.variable}`}>
       <body>{children}</body>
     </html>
   );

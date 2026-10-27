@@ -1,10 +1,24 @@
 # Design Tokens
 
-Shared look-and-feel values. The code reads these from `apps/web/styles/` so every screen stays consistent.
+Shared look-and-feel values. The code reads these from `apps/web/app/globals.css` (Tailwind v4 `@theme`) so every screen stays consistent.
 
-Status: **colors were sampled from the design screenshots** (`docs/ui/screens/`), so they are accurate to the pixel but not copied from source code. Fonts come from the Traceoff export. Sizes and spacing below are **estimates from the screenshots** and should be adjusted by eye against the designs.
+Status: **updated 2026-10-27** — the owner delivered the brutalist login design (HTML mockup + screenshot), which refines the palette and replaces the fonts. Screens built from it use:
 
-## 1. Colors (sampled)
+| Token | Value | Notes |
+|---|---|---|
+| `--color-cream` | `#F4F1EA` | Left half, header left cell |
+| `--color-sand` | `#E9E4D8` | Chips, callout cards on cream |
+| `--color-carbon` | `#09090A` | Right half, dark chrome |
+| `--color-void` | `#040405` | Bottom rules ticker |
+| `--color-surface` | `#121214` | Cards/buttons on dark |
+| `--color-accent` | `#FF4D15` | Logo braces, seam markers, links, filled chips |
+| `--color-muted` | `#7A766F` | Secondary text on cream |
+| `--color-line-light` / `--color-line-dark` | `#DCD6C7` / `#1E1E22` | Hairlines |
+| Fonts | **Syne** 700–800 (headlines), **Space Grotesk** (body), **JetBrains Mono** (labels/nav/rules) | Was: Anton / Barlow Condensed / IBM Plex Mono / Plus Jakarta Sans |
+
+The values below describe the original screenshots; the login mockup is the newer owner-approved reference and wins where they differ.
+
+## 1. Colors (original sampled values)
 
 | Token | Value | Where it appears |
 |---|---|---|

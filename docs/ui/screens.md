@@ -108,7 +108,7 @@ These do not appear in the screenshots and need the same visual language:
 
 | Screen | Iteration | Notes |
 |---|---|---|
-| Login | 1 | Split layout: headline "SIGN IN." on cream, Google button on the dark half |
+| Login | 1 | **Designed 2026-10-27** (owner HTML mockup): brutalist split 7/5, "SIGN IN." hero, rules block, languages chips, dark auth portal with custom Google button, protocol card, rules ticker. GitHub sign-in and guest mode are shown in the mockup but not built (F01 is Google only). Sample stats in the mockup (duels running, latency, countdown, rating bands) are omitted per the no-sample-data rule. |
 | Practice (code editor) | 2 | Problem statement on one half, editor and results on the other; monospace, hairline rules |
 | Room lobby | 3 | Invite link, both players' ready status |
 | Live match | 3 | Countdown timer, editor, opponent status, live event feed |

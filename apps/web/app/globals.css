@@ -1,27 +1,35 @@
 @import 'tailwindcss';
 
 /*
- * Design tokens — sampled from the owner's screenshots (docs/ui/design-tokens.md).
- * One accent only, no gradients, no purple. Corner radius 0, no shadows.
+ * Design tokens — from the owner's brutalist login design (2026-10-27).
+ * Supersedes the earlier sampled palette; one accent only, no gradients,
+ * no border radius, no shadows (except the tiny Google badge).
  */
 @theme {
-  --color-cream: #efece6; /* left panel background */
-  --color-ink: #0d0d0d; /* right panel background */
-  --color-ink-raised: #111111; /* selected rows, filled chips on cream */
-  --color-ink-surface: #1d1d1d; /* subtle dark surfaces */
-  --color-paper: #f5f3ee; /* highlighted cards on dark, text on dark */
-  --color-accent: #ff4d1c; /* THE accent: buttons, key numbers, active nav */
-  --color-accent-mid: #8f2f16;
-  --color-accent-low: #4d1e12;
-  --color-muted-light: #7a756d; /* secondary text on cream */
-  --color-muted-dark: #9f9f9f; /* secondary text on dark */
-  --color-rule-dark: #2c2c2c; /* hairlines on dark */
-  --color-rule-light: #d5d1c9; /* hairlines on cream */
+  /* Surfaces */
+  --color-cream: #f4f1ea; /* left half, header left */
+  --color-sand: #e9e4d8; /* chips, callout cards on cream */
+  --color-carbon: #09090a; /* right half, dark chrome */
+  --color-void: #040405; /* ticker bar */
+  --color-surface: #121214; /* cards and buttons on dark */
 
-  --font-display: var(--font-anton), sans-serif; /* huge headlines */
-  --font-condensed: var(--font-barlow), sans-serif; /* names, card titles, big numbers */
-  --font-mono: var(--font-plex-mono), monospace; /* labels, nav, captions */
-  --font-body: var(--font-jakarta), sans-serif; /* longer body text */
+  /* Accent */
+  --color-accent: #ff4d15; /* THE accent: logo braces, markers, links */
+
+  /* Text on cream */
+  --color-carbon-text: #09090a;
+  --color-muted: #7a766f; /* secondary text on cream */
+
+  /* Text on dark (Tailwind neutral scale for the rest) */
+  --color-paper: #f4f1ea;
+
+  /* Hairlines */
+  --color-line-dark: #1e1e22; /* rules on dark */
+  --color-line-light: #dcd6c7; /* rules on cream */
+
+  --font-headline: var(--font-syne), sans-serif; /* huge headlines */
+  --font-grotesk: var(--font-grotesk), sans-serif; /* body sentences */
+  --font-mono: var(--font-jbmono), monospace; /* labels, nav, rows, rules */
 }
 
 * {
@@ -37,9 +45,9 @@ body {
 }
 
 body {
-  background: var(--color-ink);
-  color: var(--color-ink);
-  font-family: var(--font-body);
+  background: var(--color-carbon);
+  color: var(--color-carbon-text);
+  font-family: var(--font-mono);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -49,19 +57,20 @@ a {
   text-decoration: none;
 }
 
-/* Faint dotted grid texture on both halves (design-tokens.md §3). */
+/* Dot-matrix textures (owner login design). Overlay at ~30% opacity. */
 .texture-cream {
-  background-image: radial-gradient(rgb(13 13 13 / 6%) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background-image: radial-gradient(#1a1917 1px, transparent 1px);
+  background-size: 26px 26px;
 }
 
 .texture-dark {
-  background-image: radial-gradient(rgb(245 243 238 / 5%) 1px, transparent 1px);
+  background-image: radial-gradient(#26262b 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+    animation: none !important;
   }
 }
