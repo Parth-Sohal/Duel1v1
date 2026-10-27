@@ -1,14 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+@import 'tailwindcss';
 
-:root {
-  /* Design tokens — game-style dark panels with a yellow accent */
-  --bg: #0d1017;
-  --panel: #161b26;
-  --panel-border: #262d3d;
-  --text: #eef1f7;
-  --text-muted: #9aa3b5;
-  --accent: #f5c518;
-  --accent-dark: #c9a309;
+/*
+ * Design tokens — sampled from the owner's screenshots (docs/ui/design-tokens.md).
+ * One accent only, no gradients, no purple. Corner radius 0, no shadows.
+ */
+@theme {
+  --color-cream: #efece6; /* left panel background */
+  --color-ink: #0d0d0d; /* right panel background */
+  --color-ink-raised: #111111; /* selected rows, filled chips on cream */
+  --color-ink-surface: #1d1d1d; /* subtle dark surfaces */
+  --color-paper: #f5f3ee; /* highlighted cards on dark, text on dark */
+  --color-accent: #ff4d1c; /* THE accent: buttons, key numbers, active nav */
+  --color-accent-mid: #8f2f16;
+  --color-accent-low: #4d1e12;
+  --color-muted-light: #7a756d; /* secondary text on cream */
+  --color-muted-dark: #9f9f9f; /* secondary text on dark */
+  --color-rule-dark: #2c2c2c; /* hairlines on dark */
+  --color-rule-light: #d5d1c9; /* hairlines on cream */
+
+  --font-display: var(--font-anton), sans-serif; /* huge headlines */
+  --font-condensed: var(--font-barlow), sans-serif; /* names, card titles, big numbers */
+  --font-mono: var(--font-plex-mono), monospace; /* labels, nav, captions */
+  --font-body: var(--font-jakarta), sans-serif; /* longer body text */
 }
 
 * {
@@ -24,15 +37,27 @@ body {
 }
 
 body {
-  color: var(--text);
-  background: var(--bg);
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--color-ink);
+  color: var(--color-ink);
+  font-family: var(--font-body);
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Faint dotted grid texture on both halves (design-tokens.md §3). */
+.texture-cream {
+  background-image: radial-gradient(rgb(13 13 13 / 6%) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.texture-dark {
+  background-image: radial-gradient(rgb(245 243 238 / 5%) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 @media (prefers-reduced-motion: reduce) {

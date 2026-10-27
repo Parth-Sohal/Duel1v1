@@ -1,9 +1,11 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
 import { Server as SocketIOServer } from 'socket.io';
 import { env } from './config/env.js';
 import { createDb } from './db/index.js';
 import { healthRoutes } from './routes/health.js';
+import { authRoutes } from './routes/auth.js';
 
 async function main(): Promise<void> {
   const app = Fastify({
@@ -16,7 +18,13 @@ async function main(): Promise<void> {
     origin: env.corsOrigin,
   });
 
+  // Parses the session cookie on every request (routes decide what to do with it).
+  await app.register(cookie);
+
   await app.register(healthRoutes, { db });
+  // Spec paths are /api/auth/*; the web app proxies /api/* here (same-origin
+  // in the browser so the session cookie stays first-party).
+  await app.register(authRoutes, { db, prefix: '/api' });
 
   await app.ready();
 

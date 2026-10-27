@@ -1,16 +1,11 @@
-import { APP_NAME } from '@coding-arena/shared';
-import styles from './page.module.css';
+import { redirect } from 'next/navigation';
+import { getCurrentUser } from '../lib/session';
 
-export default function Home() {
-  return (
-    <main className={styles.page}>
-      <section className={styles.hero}>
-        <h1 className={styles.title}>{APP_NAME}</h1>
-        <p className={styles.tagline}>
-          Two players. One challenge. Ten minutes. First to pass all tests wins.
-        </p>
-        <p className={styles.note}>Foundation build — sign-in and play arrive with Iteration 1+.</p>
-      </section>
-    </main>
-  );
+/**
+ * Home: the only existing destinations in Iteration 1 are the login screen
+ * and the profile, so the root sends players to the right one of the two.
+ */
+export default async function HomePage() {
+  const user = await getCurrentUser();
+  redirect(user ? '/profile' : '/login');
 }

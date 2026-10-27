@@ -26,5 +26,6 @@ export const env = {
   port: number('PORT', 4000),
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
   databaseUrl: required('DATABASE_URL'),
+  googleClientId: required('GOOGLE_CLIENT_ID'),
   nodeEnv: process.env.NODE_ENV ?? 'development',
 } as const;
