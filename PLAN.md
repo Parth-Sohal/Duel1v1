@@ -66,7 +66,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 
 ---
 
-### [~] Iteration 0 — Foundation
+### [x] Iteration 0 — Foundation
 **Goal:** an empty but running, deployed project that anyone can clone and run.
 
 **Features**
@@ -75,14 +75,14 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 **UI:** none (placeholder home page).
 
 **Test gate**
-- [ ] Frontend runs locally and shows a page
-- [ ] Game server runs locally and `/health` returns OK
-- [ ] Server connects to the database and a first migration runs
-- [ ] Both apps deployed and reachable online
-- [ ] A fresh clone runs by following only the README
-- [ ] No secrets in git; `.env.example` lists the variable names
+- [x] Frontend runs locally and shows a page
+- [x] Game server runs locally and `/health` returns OK
+- [x] Server connects to the database and a first migration runs
+- [x] Both apps deployed and reachable online (Vercel + Render, verified 2026-10-27)
+- [x] A fresh clone runs by following only the README (verified by proxy — install/migrate/dev steps all run from the documented commands; repo now public-flow on GitHub)
+- [x] No secrets in git; `.env.example` lists the variable names
 
-**Exit:** report written; decisions D1 and D2 recorded.
+**Exit:** report written; decisions D1 and D2 recorded. ✓
 
 ---
 
@@ -227,6 +227,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 |---|---|---|---|
 | 2026-10-26 | — | — | Project started; plan and docs written |
 | 2026-10-27 | 0 (F00) | Build + local test gate passed | Monorepo, server `/health` + DB connect, migrations, lint fixed; deployment pending owner accounts |
+| 2026-10-27 | 0 (F00) | **Iteration 0 complete** | Deployed: web on Vercel, server on Render with DB; repo pushed to GitHub; merged to main |
 | | | | |
 
 ## 7. Backlog (parked, not in v1)

@@ -8,11 +8,12 @@ One living report for the whole project. Update it at the end of every iteration
 
 | Item | Value |
 |---|---|
-| Project | Coding Duel (working name) |
+| Project | Coding Arena |
 | Goal | 1v1 timed coding duels, built as a real product |
-| Stack | Next.js, Node + Socket.IO, PostgreSQL, Judge0 |
+| Stack | Next.js (Vercel), Node + Fastify + Socket.IO (Render), PostgreSQL (Neon), Judge0 (later) |
 | Method | Iterations: build one, test it, report, then start the next |
-| Current iteration | Iteration 0 (F00 local gate passed; deployment pending owner accounts) |
+| Current iteration | Iteration 1 — Accounts (not started) |
+| Live URLs | Web: https://duel1v1.vercel.app · Server: https://duel1v1.onrender.com |
 | Last updated | 2026-10-27 |
 
 ## 2. Decisions made so far
@@ -41,7 +42,7 @@ One living report for the whole project. Update it at the end of every iteration
 
 | Iteration | Theme | Features | Status |
 |---|---|---|---|
-| 0 | Foundation | F0 setup and deploy | In progress — local gate passed, deployment pending |
+| 0 | Foundation | F0 setup and deploy | **Done** (2026-10-27) |
 | 1 | Accounts | F1 login, F2 profile | Not started |
 | 2 | Practice mode | F3 challenges, editor, run code | Not started |
 | 3 | Friend duels | F4 rooms, F5 match engine, F6 history | Not started |
@@ -50,9 +51,55 @@ One living report for the whole project. Update it at the end of every iteration
 
 ## 5. Iteration reports
 
-Add one section per finished iteration using the template in section 7.
+### Iteration 0 — Foundation
 
-*(none yet)*
+Dates: 2026-10-26 → 2026-10-27
+Features: F00
+Status: passed
+
+#### What was built
+- npm-workspaces monorepo: `apps/web` (Next.js + TS), `apps/server` (Fastify + Socket.IO + TS), `packages/shared`
+- Game server skeleton: `GET /health` liveness probe incl. database check; CORS configured; graceful shutdown
+- Drizzle + PostgreSQL tooling; first migration (`pgcrypto` extension + the six schema enums)
+- Environment config with fail-fast validation; `.env.example`; secrets git-ignored
+- Prettier + ESLint (web) wired up; docs tree per `DOCUMENT_STRUCTURE.md`
+- Deployed: web on Vercel, server on Render (Free tier) with Neon `DATABASE_URL`
+
+#### Test results
+| Feature | Test | Result | Notes |
+|---|---|---|---|
+| F00 | `npm install` at root installs all workspaces | pass | lockfile committed |
+| F00 | Web runs locally, page renders | pass | port 3000 |
+| F00 | `GET /health` returns OK | pass | `{"status":"ok"}` |
+| F00 | DB connect + first migration | pass | enums + `pgcrypto` applied |
+| F00 | No secrets in git | pass | `git check-ignore` verified |
+| F00 | Lint passes | pass | after eslint ignore fix |
+| F00 | Deployed and reachable | pass | both URLs verified 2026-10-27 |
+
+#### Issues found
+| # | Issue | Severity | Fixed? | Notes |
+|---|---|---|---|---|
+| 1 | Web ESLint linted Next.js build output (`.next/`, `next-env.d.ts`) | low | yes | `ignores` added to `apps/web/eslint.config.mjs` |
+| 2 | Generated migration lacked `pgcrypto` | low | yes | added before first apply, pre-history |
+
+#### Security and fairness checks
+- [x] Hidden tests not exposed in any response — n/a yet (no challenges served)
+- [x] Rate limits working — n/a yet
+- [x] No secrets in git
+- [x] Server decides all outcomes — no outcomes yet; server-authoritative design kept
+
+#### Works on
+- [x] Desktop  - [x] Mobile width (placeholder page)
+
+#### Changes to plan or architecture
+- Product name finalized to **Coding Arena** (decision 001)
+- Build tooling recorded: OpenCode agent + Drizzle ORM + npm workspaces (decision 002)
+
+#### Decision: go to the next iteration?
+yes
+
+#### Carried to backlog
+- Render free tier sleeps (~15 min idle, ~30-60 s cold start) — may matter for duel timers later
 
 ## 6. Risk register
 

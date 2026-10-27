@@ -1,6 +1,6 @@
 # F00 — Project setup and foundation
 
-Status: tested (local gate passed; deployment pending owner accounts)
+Status: done (local + deployed gate passed)
 Branch: feature/F00-setup
 Depends on: none
 
@@ -54,4 +54,4 @@ An empty but running monorepo: anyone can clone it, follow the README, and get t
   - Web ESLint was scanning Next.js build artifacts (`.next/**`, `next-env.d.ts`) and failing with ~100 errors. Fixed by adding `ignores` to `apps/web/eslint.config.mjs`.
   - First migration lacked `CREATE EXTENSION pgcrypto` required by `F00`; added to `drizzle/0000_lean_luckman.sql` before applying.
 - Follow-ups moved to backlog:
-  - Deployment to Vercel/Railway (needs owner accounts) — last open item of the Iteration 0 gate.
+  - None remaining; deployed on Vercel (`https://duel1v1.vercel.app`) and Render (`https://duel1v1.onrender.com`) on 2026-10-27.
