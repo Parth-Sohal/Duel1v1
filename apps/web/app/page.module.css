@@ -1,0 +1,49 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at 50% -20%, rgba(245, 197, 24, 0.08), transparent 60%),
+    var(--bg);
+}
+
+.hero {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 48px 40px;
+  max-width: 560px;
+  width: 100%;
+  text-align: center;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin-top: 12px;
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.note {
+  margin-top: 20px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding: 32px 20px;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+}
