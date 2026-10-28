@@ -40,7 +40,9 @@ function ProtocolCard() {
 
 /** Build the Google OAuth redirect URL for wherever the app is being served. */
 async function buildAuthUrl(): Promise<{ url: string; configured: boolean }> {
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  // Runtime server env first (Vercel/Render: GOOGLE_CLIENT_ID — same name on
+  // both), with the build-time NEXT_PUBLIC_ var as a local-dev fallback.
+  const clientId = process.env.GOOGLE_CLIENT_ID ?? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   if (!clientId) return { url: '', configured: false };
 
   const h = await headers();
@@ -123,7 +125,9 @@ export default async function LoginPage() {
             <GoogleSignInButton authUrl={authUrl} />
           ) : (
             <p className="border border-line-dark bg-surface/80 p-4 font-mono text-xs tracking-[0.05em] text-neutral-300">
-              Google sign-in is not configured yet.
+              Google sign-in is not configured yet — set the{" "}
+              <span className="text-accent">GOOGLE_CLIENT_ID</span> environment variable and
+              redeploy.
             </p>
           )}
 
