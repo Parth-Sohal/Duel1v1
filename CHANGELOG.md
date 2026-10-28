@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-28] F03 — Email + password login (built + tested, local)
+- Added: manual accounts — `POST /api/auth/register` (auto sign-in) and `POST /api/auth/login`; scrypt password hashing (node:crypto, salted, params in the hash string, timing-safe compare); `credentials` table (migration 0002, one password per account)
+- Added: login page email form with Sign in / Create account toggle (display name only in create mode); same 30-day session/profile as Google sign-in
+- Added: server-side rate limiting — 8 failed logins per 15 min per email and per IP → 429; success clears the email count
+- Verified: 20-check API matrix (validation, 409 dup, generic 401s, no plaintext password in DB, rate limit) + live form round-trip; lint + production build clean
+- Parked: email verification + password reset (needs an email provider), account linking, Redis-backed rate limiting
+
 ## [2026-10-28] F02 — Profile (built + tested, local)
 - Added: `GET /api/me`, `PATCH /api/me` (display-name edit, server-side 2–30 validation, `updated_at` bump), `GET /api/users/:id` (public fields only, 404 unknown/bad id)
 - Added: profile page avatar + inline name editor (char counter, save/cancel, live header sync); public profile `/u/[id]` (read-only, designed not-found state); header avatar chip

@@ -1,13 +1,15 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { eq } from 'drizzle-orm';
-import { SESSION_COOKIE } from '@coding-arena/shared';
+import { SESSION_COOKIE, PASSWORD_MIN, PASSWORD_MAX } from '@coding-arena/shared';
 import type { UserPublic } from '@coding-arena/shared';
 import type { Database } from '../db/index.js';
-import { users } from '../db/schema.js';
+import { users, credentials } from '../db/schema.js';
 import { env } from '../config/env.js';
 import { createSession, deleteSession, resolveSession } from '../services/sessions.js';
-import { publicUser } from '../services/users.js';
+import { publicUser, validateDisplayName, normalizeEmail } from '../services/users.js';
+import { hashPassword, verifyPassword } from '../services/passwords.js';
+import { allowLoginAttempt, clearLoginFailures, recordFailedLogin } from '../services/rate-limit.js';
 
 type AuthDeps = {
   db: Database;
@@ -163,5 +165,106 @@ export async function authRoutes(app: FastifyInstance, opts: AuthDeps): Promise<
     }
     reply.clearCookie(SESSION_COOKIE, { ...COOKIE_OPTIONS, expires: new Date(0) });
     return reply.code(204).send();
+  });
+
+  /**
+   * POST /auth/register — manual account (F03). Creates the user (google_id
+   * null) plus the password credential in one transaction, then signs the
+   * player in. Validation is server-side; the form is a convenience.
+   */
+  app.post('/auth/register', async (request, reply) => {
+    const ip = request.ip;
+    const body = (request.body ?? {}) as {
+      email?: unknown;
+      password?: unknown;
+      displayName?: unknown;
+    };
+
+    const email = normalizeEmail(body.email);
+    if (!email) return reply.code(400).send({ error: 'invalid_email', message: 'Enter a valid email address.' });
+
+    if (!allowLoginAttempt(`ip:${ip}`)) {
+      return reply.code(429).send({ error: 'rate_limited', message: 'Too many attempts — try again in a few minutes.' });
+    }
+
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX) {
+      return reply.code(400).send({
+        error: 'invalid_password',
+        message: `Password must be ${PASSWORD_MIN}–${PASSWORD_MAX} characters.`,
+      });
+    }
+
+    const displayName = validateDisplayName(body.displayName);
+    if (!displayName) {
+      return reply.code(400).send({
+        error: 'invalid_display_name',
+        message: 'Display name must be 2–30 characters (spaces around it are trimmed).',
+      });
+    }
+
+    const taken = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (taken.length > 0) {
+      return reply.code(409).send({ error: 'email_taken', message: 'That email already has an account.' });
+    }
+
+    const passwordHash = await hashPassword(password);
+    try {
+      const created = await db.transaction(async (tx) => {
+        const inserted = await tx
+          .insert(users)
+          .values({ email, displayName, avatarUrl: null })
+          .returning();
+        const user = inserted[0];
+        await tx.insert(credentials).values({ userId: user.id, passwordHash });
+        return user;
+      });
+      app.log.info({ userId: created.id }, 'manual account created');
+      const { token, expiresAt } = await createSession(db, created.id);
+      setSessionCookie(reply, token, expiresAt);
+      return { user: publicUser(created) };
+    } catch (err) {
+      // The unique indexes are the real guard against a signup race.
+      app.log.warn({ reqId: request.id }, 'register failed (email likely taken in a race)');
+      void err;
+      return reply.code(409).send({ error: 'email_taken', message: 'That email already has an account.' });
+    }
+  });
+
+  /**
+   * POST /auth/login — manual sign-in (F03). Generic error for unknown email
+   * and wrong password alike (no account enumeration). Rate limited.
+   */
+  app.post('/auth/login', async (request, reply) => {
+    const ip = request.ip;
+    const body = (request.body ?? {}) as { email?: unknown; password?: unknown };
+
+    const email = normalizeEmail(body.email);
+    if (!email) return reply.code(400).send({ error: 'invalid_email', message: 'Enter a valid email address.' });
+
+    if (!allowLoginAttempt(`email:${email}`, `ip:${ip}`)) {
+      return reply.code(429).send({ error: 'rate_limited', message: 'Too many attempts — try again in a few minutes.' });
+    }
+
+    const rows = await db
+      .select({ user: users, passwordHash: credentials.passwordHash })
+      .from(users)
+      .innerJoin(credentials, eq(credentials.userId, users.id))
+      .where(eq(users.email, email))
+      .limit(1);
+    const row = rows[0];
+
+    const password = typeof body.password === 'string' ? body.password : '';
+    const ok = row ? await verifyPassword(password, row.passwordHash) : false;
+    if (!row || !ok) {
+      recordFailedLogin(`email:${email}`, `ip:${ip}`);
+      app.log.warn({ reqId: request.id }, 'manual login failed');
+      return reply.code(401).send({ error: 'invalid_credentials', message: 'Email or password is incorrect.' });
+    }
+
+    clearLoginFailures(`email:${email}`);
+    const { token, expiresAt } = await createSession(db, row.user.id);
+    setSessionCookie(reply, token, expiresAt);
+    return { user: publicUser(row.user) };
   });
 }

@@ -66,3 +66,16 @@ export const sessions = pgTable('sessions', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('sessions_user_idx').on(t.userId)]);
+
+/**
+ * Manual-account passwords (docs/features/F03-email-login.md). One password
+ * per account; the email itself lives on `users` (unique). Only the salted
+ * scrypt hash is stored, never the password.
+ */
+export const credentials = pgTable('credentials', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

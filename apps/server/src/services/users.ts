@@ -51,6 +51,15 @@ export function validateDisplayName(raw: unknown): string | null {
   return name;
 }
 
+/** Basic email shape check + normalization (trim, lowercase). Null when invalid. */
+export function normalizeEmail(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const email = raw.trim().toLowerCase();
+  // Practical check: one @, non-empty local part, dot-separated domain with a TLD.
+  if (email.length === 0 || email.length > 254) return null;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ? email : null;
+}
+
 /** Update a user's display name. Returns the updated public user, or null. */
 export async function updateDisplayName(
   db: Database,

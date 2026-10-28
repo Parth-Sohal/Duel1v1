@@ -21,6 +21,14 @@ export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const DISPLAY_NAME_MIN = 2;
 export const DISPLAY_NAME_MAX = 30;
 
+/** Password policy (docs/features/F03-email-login.md): length over composition rules. */
+export const PASSWORD_MIN = 8;
+export const PASSWORD_MAX = 200;
+
+/** Rate limit: 8 failed logins per 15 minutes, per email and per IP. */
+export const LOGIN_MAX_ATTEMPTS = 8;
+export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
 /**
  * Public user shape. Everything the browser is ever told about a user.
  * No email, no google_id — those never leave the server.

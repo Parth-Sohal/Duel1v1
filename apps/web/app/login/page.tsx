@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { SplitShell } from '../../components/SplitShell';
 import { Chip, Eyebrow, Headline } from '../../components/ui';
 import { GoogleSignInButton } from '../../components/GoogleSignInButton';
+import { EmailAuthForm } from '../../components/EmailAuthForm';
 import { getCurrentUser } from '../../lib/session';
 
 /** Real protocol facts (decisions D3/D6) — no sample stats. */
@@ -115,7 +116,7 @@ export default async function LoginPage() {
             Authenticate
           </h2>
           <p className="mb-8 font-grotesk text-sm leading-relaxed text-neutral-300">
-            Sign in with your Google account. No passwords stored.
+            Sign in with Google, or create an account with email.
           </p>
 
           {configured ? (
@@ -125,6 +126,17 @@ export default async function LoginPage() {
               Google sign-in is not configured yet.
             </p>
           )}
+
+          {/* Divider */}
+          <div className="my-6 flex items-center gap-3" aria-hidden>
+            <span className="h-px flex-1 bg-line-dark" />
+            <span className="font-mono text-xs font-semibold uppercase tracking-[0.1em] text-neutral-400">
+              or email
+            </span>
+            <span className="h-px flex-1 bg-line-dark" />
+          </div>
+
+          <EmailAuthForm />
 
           <div className="mt-8">
             <ProtocolCard />
