@@ -11,7 +11,7 @@ A player sees their own stats, can edit their display name, and can view another
 ## Scope
 
 - In: own profile page (stats + hero panel), `PATCH /api/me` display-name editing, public profile page `/u/[id]`, `GET /api/users/:id` (public fields only), header avatar linking to own profile.
-- Out (not now): match history list (F06), stats beyond points/wins/losses/draws, avatar upload (Google picture only in v1).
+- Out (not now): match history list (F06), stats beyond points/wins/losses/draws, avatar upload (Google picture only in v1 — if the player has no Google photo they get an initial-letter block; a photo added to their Google account later is picked up at their next sign-in).
 
 ## UI
 
