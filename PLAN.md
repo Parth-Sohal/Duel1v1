@@ -232,6 +232,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 | 2026-10-28 | 1 (F02) | Build + test passed | Name edit (PATCH /api/me) + public profiles (/u/[id]) verified via API matrix and live UI round-trip; responsive at 375/768/1440 |
 | 2026-10-28 | 1 (F03) | Build + test passed | Email + password accounts: scrypt hashing, rate limiting, migration 0002; API matrix + live form round-trip; Google avatar refresh on sign-in |
 | 2026-10-28 | 1 (F02b) | Build + test passed | Own-photo upload: migration 0003 (`avatars`), PUT/DELETE `/api/me/avatar` + public serve, 256×256 client crop, upload beats Google photo; 14/14 API matrix + live UI round-trip + responsive; confirmed in real use |
+| 2026-10-28 | 1 | Iteration complete — report written, merged to main | All account features shipped (F01 Google login, F02 profile, F02b avatar upload, F03 email login); `feature/F02b-avatar-upload` merged to `main` |
 | | | | |
 
 ## 7. Backlog (parked, not in v1)

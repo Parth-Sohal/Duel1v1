@@ -12,9 +12,9 @@ One living report for the whole project. Update it at the end of every iteration
 | Goal | 1v1 timed coding duels, built as a real product |
 | Stack | Next.js (Vercel), Node + Fastify + Socket.IO (Render), PostgreSQL (Neon), Judge0 (later) |
 | Method | Iterations: build one, test it, report, then start the next |
-| Current iteration | Iteration 1 — Accounts (not started) |
+| Current iteration | Iteration 1 — Accounts (built + tested; merging to main) |
 | Live URLs | Web: https://duel1v1.vercel.app · Server: https://duel1v1.onrender.com |
-| Last updated | 2026-10-27 |
+| Last updated | 2026-10-28 |
 
 ## 2. Decisions made so far
 
@@ -27,6 +27,9 @@ One living report for the whole project. Update it at the end of every iteration
 | 5 | Challenge tests stored as `jsonb` in each challenge version | Variable number of tests per challenge, one record to load | 2026-10-27 |
 | 6 | Friend rooms and bot opponent before random matchmaking | Avoid the empty-queue problem | 2026-10-26 |
 | 7 | Launch languages: JavaScript and Python; C++ and Java in Iteration 5 | Tests are language-independent; two languages keeps per-language verification manageable | 2026-10-27 |
+| 8 | Email + password accounts in Iteration 1, simple version (no email verification) | Owner-approved scope addition; real accounts without an email provider | 2026-10-28 |
+| 9 | Avatar uploads stored as base64 bytes in our own database | No third-party storage service; works on free tiers; photos are ≤256×256 and size-capped | 2026-10-28 |
+| 10 | An upload always wins over the Google photo | The player owns their picture; Google sign-in only fills an empty avatar | 2026-10-28 |
 
 ## 3. Open decisions
 
@@ -43,7 +46,7 @@ One living report for the whole project. Update it at the end of every iteration
 | Iteration | Theme | Features | Status |
 |---|---|---|---|
 | 0 | Foundation | F0 setup and deploy | **Done** (2026-10-27) |
-| 1 | Accounts | F1 login, F2 profile | Not started |
+| 1 | Accounts | F1 login, F2 profile, F2b avatar upload, F3 email login | **Done** (2026-10-28) |
 | 2 | Practice mode | F3 challenges, editor, run code | Not started |
 | 3 | Friend duels | F4 rooms, F5 match engine, F6 history | Not started |
 | 4 | Soft launch | F7 bot and daily challenge, F8 launch hardening | Not started |
@@ -100,6 +103,70 @@ yes
 
 #### Carried to backlog
 - Render free tier sleeps (~15 min idle, ~30-60 s cold start) — may matter for duel timers later
+
+### Iteration 1 — Accounts
+
+Dates: 2026-10-27 → 2026-10-28
+Features: F01 Google login, F02 profile, F02b avatar upload (added), F03 email + password login (added)
+Status: passed
+
+#### What was built
+- **F01 Google login:** OAuth redirect flow (`response_type=id_token`) with `state` CSRF guard; server verifies the token, creates the user on first sign-in, reuses the row after; 30-day session cookie (server stores only the SHA-256 token hash); logout deletes the session row and clears the cookie; UI v2 shipped 10 owner-reported fixes (overlap, nav collision, AA contrast, hierarchy, CTA, empty states)
+- **F02 profile:** `GET/PATCH /api/me` (display-name edit, 2–30 chars validated server-side), `GET /api/users/:id` (public fields only — email/google_id provably never serialized), profile page with inline name editor + live header sync, public profile `/u/[id]` with a designed not-found, header avatar chip; Google photo refresh picks up photo changes at sign-in (display name stays player-owned)
+- **F02b avatar upload (owner-requested addition):** `PUT/DELETE /api/me/avatar`, `avatars` table (migration 0003, base64 bytes in our own DB), public `GET /api/users/:id/avatar` with a versioned cache-busting URL; the client center-crops to 256×256 JPEG on canvas before upload and the server still re-validates (data-URL shape, MIME allowlist, magic bytes, 150 KB cap); uploads win over the Google photo
+- **F03 email + password login (owner-approved addition, simple version):** `POST /api/auth/register` (auto sign-in) + `POST /api/auth/login`; scrypt hashing (`node:crypto`, salted, params stored in the hash string, timing-safe compare); `credentials` table (migration 0002); rate limiting — 8 failed logins per 15 min per email and per IP → 429; login-page email form with Sign in / Create account toggle; same session/profile as Google sign-in
+
+#### Test results
+| Feature | Test | Result | Notes |
+|---|---|---|---|
+| F01 | Live Google sign-in end-to-end | pass | redirect flow, account reuse on return |
+| F01 | Session persists across refresh | pass | |
+| F01 | Logout deletes session row + cookie | pass | |
+| F01 | DB stores only SHA-256 token hash | pass | 64 hex chars, never the raw token |
+| F02 | Name edit API matrix (400/401/200/404) | pass | trim + length validation server-side |
+| F02 | Live edit round-trip + header sync | pass | |
+| F02 | Public profile exposes no private fields | pass | no email/google_id in any response |
+| F02 | Responsive 375 / 768 / 1440 | pass | no overflow or overlap |
+| F02b | 14/14 avatar API matrix | pass | upload, serve bytes, version bump, renamed non-image 400, oversize 413, no-auth 401, unknown id 404, remove → 404 |
+| F02b | Live UI round-trip (upload → remove → re-upload) | pass | letter block returns; version busts cache |
+| F02b | Confirmed in real use | pass | a live account uploaded its own logo; serves publicly |
+| F02b | Responsive 375 / 768 / 1440 with photo | pass | zero horizontal overflow |
+| F03 | 20-check API matrix | pass | validation, 409 dup, generic 401s, rate limit, no plaintext in DB |
+| F03 | Live form round-trip (sign in / create) | pass | |
+| All | Lint + production build | pass | tsc + eslint + `next build` green |
+
+#### Issues found
+| # | Issue | Severity | Fixed? | Notes |
+|---|---|---|---|---|
+| 1 | `next/image` lazy loading never painted avatars (no request issued, even in-viewport) | medium | yes | avatars are 3–4 KB and always above the fold → `loading="eager"` in `Avatar` |
+| 2 | Oversize avatar returned 400 instead of the spec'd 413 | low | yes | parser now distinguishes `invalid` vs `too_large` |
+| 3 | `DELETE` with `content-type: application/json` and no body rejected by Fastify | low | yes (test) | harness bug — product behavior correct; fixed in the test script |
+| 4 | Stale httpOnly session cookie in the test browser blocked JS cookie seeding | low | yes (harness) | cleared via the app's own logout; not a product issue |
+
+#### Security and fairness checks
+- [x] Hidden tests not exposed in any response — n/a yet (no challenges served)
+- [x] Rate limits working — login rate limit (8 / 15 min per email and per IP) verified
+- [x] No secrets in git — `git check-ignore` verified; secrets only in `.env.local`
+- [x] Server decides all outcomes — sessions validated server-side on every request; the browser is never trusted (avatar uploads re-validated: MIME allowlist, magic bytes, size cap)
+- [x] Passwords stored only as salted scrypt hashes; session tokens only as SHA-256 hashes
+
+#### Works on
+- [x] Desktop  - [x] Mobile width (375 / 768 / 1440, profile + login verified)
+
+#### Changes to plan or architecture
+- Iteration 1 scope grew by owner decision: F03 email + password (simple version) and F02b avatar upload — both built and tested inside this iteration, no other features displaced
+- Avatars stored in our own database (base64) instead of a third-party storage service — free-tier friendly, revisit if avatars grow
+- Google photo refresh logic now distinguishes local uploads (never overwritten) from Google-hosted URLs
+
+#### Decision: go to the next iteration?
+yes — Iteration 2 (practice mode: challenges, editor, run/submit via Judge0)
+
+#### Carried to backlog
+- Verify cookie `Secure` flag at production deploy (this iteration is local-tested; deploy step pending)
+- Production env for the accounts work: Vercel needs `NEXT_PUBLIC_GOOGLE_CLIENT_ID` + `API_ORIGIN=https://duel1v1.onrender.com`; Render needs `GOOGLE_CLIENT_ID`
+- Email verification + password reset (needs an email provider); account linking
+- Redis-backed rate limiting if we ever scale past one server instance
+- Crop/zoom UI and object-storage migration if avatars grow beyond small squares
 
 ## 6. Risk register
 
