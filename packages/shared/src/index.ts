@@ -17,6 +17,10 @@ export const SESSION_COOKIE = 'arena_session';
 /** Session lifetime: 30 days, server-owned. */
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** Display-name limits (docs/features/F02-profile.md): validated server-side. */
+export const DISPLAY_NAME_MIN = 2;
+export const DISPLAY_NAME_MAX = 30;
+
 /**
  * Public user shape. Everything the browser is ever told about a user.
  * No email, no google_id — those never leave the server.
@@ -29,4 +33,6 @@ export type UserPublic = {
   wins: number;
   losses: number;
   draws: number;
+  /** ISO timestamp of account creation (public — shown as "joined"). */
+  createdAt: string;
 };

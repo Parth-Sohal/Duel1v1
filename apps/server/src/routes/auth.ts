@@ -7,6 +7,7 @@ import type { Database } from '../db/index.js';
 import { users } from '../db/schema.js';
 import { env } from '../config/env.js';
 import { createSession, deleteSession, resolveSession } from '../services/sessions.js';
+import { publicUser } from '../services/users.js';
 
 type AuthDeps = {
   db: Database;
@@ -57,26 +58,6 @@ function clampDisplayName(raw: string | undefined, email: string | undefined): s
   if (name.length > 30) name = name.slice(0, 30).trim();
   if (name.length < 2) name = 'Player';
   return name;
-}
-
-function publicUser(row: {
-  id: string;
-  displayName: string;
-  avatarUrl: string | null;
-  points: number;
-  wins: number;
-  losses: number;
-  draws: number;
-}): UserPublic {
-  return {
-    id: row.id,
-    displayName: row.displayName,
-    avatarUrl: row.avatarUrl,
-    points: row.points,
-    wins: row.wins,
-    losses: row.losses,
-    draws: row.draws,
-  };
 }
 
 /** Set the session cookie on a reply. */

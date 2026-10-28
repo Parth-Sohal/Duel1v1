@@ -4,6 +4,7 @@ import type { Database } from '../db/index.js';
 import { sessions, users } from '../db/schema.js';
 import { SESSION_TTL_MS } from '@coding-arena/shared';
 import type { UserPublic } from '@coding-arena/shared';
+import { publicUser } from './users.js';
 
 /**
  * Server-side sessions (docs/features/F01-google-login.md):
@@ -49,6 +50,7 @@ export async function resolveSession(
       wins: users.wins,
       losses: users.losses,
       draws: users.draws,
+      createdAt: users.createdAt,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -57,18 +59,7 @@ export async function resolveSession(
 
   const row = rows[0];
   if (!row) return null;
-  return {
-    sessionId: row.sessionId,
-    user: {
-      id: row.id,
-      displayName: row.displayName,
-      avatarUrl: row.avatarUrl,
-      points: row.points,
-      wins: row.wins,
-      losses: row.losses,
-      draws: row.draws,
-    },
-  };
+  return { sessionId: row.sessionId, user: publicUser(row) };
 }
 
 /** Delete one session by raw token (logout). */

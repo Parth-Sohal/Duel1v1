@@ -229,6 +229,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 | 2026-10-27 | 0 (F00) | Build + local test gate passed | Monorepo, server `/health` + DB connect, migrations, lint fixed; deployment pending owner accounts |
 | 2026-10-27 | 0 (F00) | **Iteration 0 complete** | Deployed: web on Vercel, server on Render with DB; repo pushed to GitHub; merged to main |
 | 2026-10-28 | 1 (F01) | Build + test passed | Live Google sign-in (redirect flow), session persistence + logout verified, DB hash-only storage verified, UI v2 (10 fixes) at 375/768/1440; production cookie check at deploy |
+| 2026-10-28 | 1 (F02) | Build + test passed | Name edit (PATCH /api/me) + public profiles (/u/[id]) verified via API matrix and live UI round-trip; responsive at 375/768/1440 |
 | | | | |
 
 ## 7. Backlog (parked, not in v1)

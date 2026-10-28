@@ -6,6 +6,7 @@ import { env } from './config/env.js';
 import { createDb } from './db/index.js';
 import { healthRoutes } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
+import { meRoutes } from './routes/me.js';
 
 async function main(): Promise<void> {
   const app = Fastify({
@@ -25,6 +26,8 @@ async function main(): Promise<void> {
   // Spec paths are /api/auth/*; the web app proxies /api/* here (same-origin
   // in the browser so the session cookie stays first-party).
   await app.register(authRoutes, { db, prefix: '/api' });
+  // F02 profile routes: /api/me (GET/PATCH) and /api/users/:id (GET).
+  await app.register(meRoutes, { db, prefix: '/api' });
 
   await app.ready();
 

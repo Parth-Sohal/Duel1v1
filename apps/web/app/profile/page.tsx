@@ -1,12 +1,14 @@
 import { redirect } from 'next/navigation';
 import { SplitShell } from '../../components/SplitShell';
-import { Eyebrow, Headline, RadarSkeleton, Stat } from '../../components/ui';
+import { Avatar } from '../../components/Avatar';
+import { ProfileName } from '../../components/ProfileName';
+import { Eyebrow, RadarSkeleton, Stat } from '../../components/ui';
 import { getCurrentUser } from '../../lib/session';
 
 /**
- * Profile (docs/ui/screens.md §3, Iteration 1 scope): left half with name,
- * a stat row, and the radar skeleton; right half is the activity empty
- * state with a Find-a-match CTA. No sample data.
+ * Profile (docs/ui/screens.md §3 + F02): avatar, name (inline-editable),
+ * stat row, and the radar skeleton on the cream half; activity empty state
+ * with a Find-a-match CTA on the dark half. No sample data.
  */
 export default async function ProfilePage() {
   const user = await getCurrentUser();
@@ -21,9 +23,12 @@ export default async function ProfilePage() {
           <div className="mb-4">
             <Eyebrow marker="square">Player profile</Eyebrow>
           </div>
-          <Headline className="mb-8 min-w-0 text-[clamp(2.5rem,6vw,4.5rem)]">
-            {user.displayName}
-          </Headline>
+          <div className="mb-8 flex items-start gap-5">
+            <Avatar displayName={user.displayName} avatarUrl={user.avatarUrl} size={96} />
+            <div className="min-w-0 flex-1 pt-1">
+              <ProfileName displayName={user.displayName} />
+            </div>
+          </div>
 
           {/* Stat row: big numbers, small labels */}
           <div className="grid max-w-md grid-cols-2 gap-x-6 gap-y-8 border-t border-line-light pt-6 sm:grid-cols-4">
@@ -98,7 +103,7 @@ export default async function ProfilePage() {
           </div>
         </div>
       }
-      leftFooter="Skill map updates after every duel."
+      leftFooter={`Joined ${new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · Skill map updates after every duel.`}
       rightFooter="Rating changes only when the match ends."
     />
   );

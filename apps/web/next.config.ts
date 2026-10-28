@@ -9,6 +9,10 @@ const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:4000';
 const nextConfig: NextConfig = {
   // The shared package ships TypeScript source consumed directly by both apps.
   transpilePackages: ['@coding-arena/shared'],
+  // Google-hosted avatars (users.avatar_url comes from the Google picture).
+  images: {
+    remotePatterns: [{ protocol: 'https', hostname: 'lh3.googleusercontent.com' }],
+  },
   async rewrites() {
     return [
       {

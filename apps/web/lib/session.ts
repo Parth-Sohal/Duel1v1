@@ -23,3 +23,24 @@ export async function getCurrentUser(): Promise<UserPublic | null> {
   const data = (await res.json()) as { user?: UserPublic };
   return data.user ?? null;
 }
+
+/**
+ * Server-side lookup of another player's public profile (F02). Rendered on
+ * the server with a forwarded cookie so a refresh always shows current data.
+ * Returns null for unknown ids (the page then renders a designed 404).
+ */
+export async function getPublicUser(id: string): Promise<UserPublic | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+
+  const origin = process.env.API_ORIGIN ?? 'http://localhost:4000';
+  const res = await fetch(`${origin}/api/users/${encodeURIComponent(id)}`, {
+    headers: { cookie: `${SESSION_COOKIE}=${token}` },
+    cache: 'no-store',
+  });
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as { user?: UserPublic };
+  return data.user ?? null;
+}

@@ -1,6 +1,6 @@
 # F02 — Profile
 
-Status: planned
+Status: built + tested (2026-10-28)
 Branch: feature/F02-profile (created from feature/F01-google-login)
 Depends on: F01
 
@@ -46,17 +46,17 @@ No new tables. Reads `users` only.
 
 ## Test checklist
 
-- [ ] Own profile shows correct data (name, avatar, points, W/L/D)
-- [ ] Editing the name saves and shows everywhere (header, profile)
-- [ ] Empty name, 1-char name, and 31+ char names are rejected with a clear error
-- [ ] Another player's public profile loads without private fields (verify no `email` in the network tab)
-- [ ] Unknown user id returns 404 (not a crash or empty page)
-- [ ] Refresh shows current data (no stale cache)
-- [ ] Layout matches the design at desktop and mobile width
-- [ ] Lint and build pass
+- [x] Own profile shows correct data (name, avatar, points, W/L/D)
+- [x] Editing the name saves and shows everywhere (header, profile) — full UI round-trip verified (counter, save, live header chip update)
+- [x] Empty name, 1-char name, and 31+ char names are rejected with a clear error (400 `invalid_display_name`; whitespace-only too; no-cookie PATCH → 401)
+- [x] Another player's public profile loads without private fields (verified in the API response: id, displayName, avatarUrl, points, W/L/D, createdAt only — no email, no google_id)
+- [x] Unknown user id returns 404 (random UUID → 404, malformed id → 404; both render the designed not-found page, no crash)
+- [x] Refresh shows current data (server-rendered with a forwarded cookie, `cache: no-store`)
+- [x] Layout matches the design at desktop and mobile width (375/768/1440 on /profile and /u/[id]: no overflow, no past-edge elements, no panel overlap, headline inside its panel)
+- [x] Lint and build pass
 
 ## Sign-off
 
-- Tested on: —
-- Issues found and fixed: —
-- Follow-ups moved to backlog: —
+- Tested on: 2026-10-28 (API matrix via curl + live UI round-trip in the browser)
+- Issues found and fixed: test harness quirk only — PowerShell 5.1 drops `Cookie:` set via `-Headers` (used curl) and mangles JSON args (bodies via temp files). No product bugs found.
+- Follow-ups moved to backlog: avatar upload (out of scope, Google picture only in v1).

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { UserPublic } from '@coding-arena/shared';
+import { Avatar } from './Avatar';
 
 /**
  * Top system bar across both columns: nav links grouped left, status items
@@ -70,10 +71,13 @@ export function Header() {
   const chip = user ? (
     <Link
       href="/profile"
-      className="max-w-52 truncate font-mono text-xs font-semibold uppercase tracking-[0.05em] text-white transition-colors hover:text-accent"
+      className="flex max-w-64 items-center gap-2.5 font-mono text-xs font-semibold uppercase tracking-[0.05em] text-white transition-colors hover:text-accent"
       title={`${user.displayName} / ${user.points.toLocaleString('en-US')}`}
     >
-      {user.displayName} / {user.points.toLocaleString('en-US')}
+      <Avatar displayName={user.displayName} avatarUrl={user.avatarUrl} size={28} />
+      <span className="truncate">
+        {user.displayName} / {user.points.toLocaleString('en-US')}
+      </span>
     </Link>
   ) : null;
 
