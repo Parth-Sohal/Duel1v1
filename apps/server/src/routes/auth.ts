@@ -136,15 +136,19 @@ export async function authRoutes(app: FastifyInstance, opts: AuthDeps): Promise<
       app.log.info({ userId: user.id }, 'user created (first google login)');
     } else if (claims.picture && claims.picture !== user.avatarUrl) {
       // v1 avatars come only from Google (F02 spec): if the player adds or
-      // changes their Google photo, pick it up at the next sign-in. The
+      // changes their Google photo, pick it up at the next sign-in — but only
+      // when there is no local upload (F02b: an upload always wins). The
       // display name is NOT refreshed — the player owns it now.
-      const updated = await db
-        .update(users)
-        .set({ avatarUrl: claims.picture, updatedAt: new Date() })
-        .where(eq(users.id, user.id))
-        .returning();
-      user = updated[0];
-      app.log.info({ userId: user.id }, 'avatar refreshed from google');
+      const localUpload = user.avatarUrl?.startsWith('/') ?? false;
+      if (!localUpload) {
+        const updated = await db
+          .update(users)
+          .set({ avatarUrl: claims.picture, updatedAt: new Date() })
+          .where(eq(users.id, user.id))
+          .returning();
+        user = updated[0];
+        app.log.info({ userId: user.id }, 'avatar refreshed from google');
+      }
     }
 
     const { token, expiresAt } = await createSession(db, user.id);

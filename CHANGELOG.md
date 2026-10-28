@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-10-28] F02b — Avatar upload (built + tested, local)
+- Added: `PUT /api/me/avatar` (upload own photo) and `DELETE /api/me/avatar` (remove) — the client center-crops to a 256×256 JPEG on canvas before upload; the server still re-validates the data URL, MIME allowlist (jpeg/png/webp), magic bytes, and a 150 KB decoded cap (400 invalid / 413 too large)
+- Added: `avatars` table (migration 0003, base64 bytes in our own DB — no third-party storage) and public `GET /api/users/:id/avatar` (correct Content-Type, 60 s cache, versioned `?v=` URL busts caches on re-upload)
+- Added: profile-page CHANGE PHOTO / REMOVE controls (`AvatarEditor`); upload always wins over the Google photo — sign-in refresh skips any local `/api/...` avatar URL
+- Fixed: `Avatar` renders images with `loading="eager"` — avatars are tiny (3–4 KB) and always above the fold; lazy loading never painted them in testing
+- Verified: 14/14 API matrix (upload, serve bytes, re-upload bumps version, renamed non-image 400, oversize 413, no-auth 401, unknown id 404, public profile carries avatarUrl but never email, remove → 404) + live UI round-trip (upload → remove → letter block → re-upload) + responsive 375/768/1440 (zero overflow); confirmed in real use — a live account uploaded and its avatar serves publicly; lint + production build clean
+- Parked: crop/zoom UI, object-storage migration if avatars grow
+
 ## [2026-10-28] F03 — Email + password login (built + tested, local)
 - Added: manual accounts — `POST /api/auth/register` (auto sign-in) and `POST /api/auth/login`; scrypt password hashing (node:crypto, salted, params in the hash string, timing-safe compare); `credentials` table (migration 0002, one password per account)
 - Added: login page email form with Sign in / Create account toggle (display name only in create mode); same 30-day session/profile as Google sign-in

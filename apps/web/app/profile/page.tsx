@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { SplitShell } from '../../components/SplitShell';
 import { Avatar } from '../../components/Avatar';
+import { AvatarEditor } from '../../components/AvatarEditor';
 import { ProfileName } from '../../components/ProfileName';
 import { Eyebrow, RadarSkeleton, Stat } from '../../components/ui';
 import { getCurrentUser } from '../../lib/session';
@@ -24,7 +25,10 @@ export default async function ProfilePage() {
             <Eyebrow marker="square">Player profile</Eyebrow>
           </div>
           <div className="mb-8 flex items-start gap-5">
-            <Avatar displayName={user.displayName} avatarUrl={user.avatarUrl} size={96} />
+            <div className="flex flex-shrink-0 flex-col gap-2">
+              <Avatar displayName={user.displayName} avatarUrl={user.avatarUrl} size={96} />
+              <AvatarEditor hasPhoto={!!user.avatarUrl} />
+            </div>
             <div className="min-w-0 flex-1 pt-1">
               <ProfileName displayName={user.displayName} />
             </div>

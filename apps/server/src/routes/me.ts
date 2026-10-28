@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from './auth.js';
 import type { Database } from '../db/index.js';
 import { getPublicUserById, updateDisplayName, validateDisplayName } from '../services/users.js';
+import { getAvatarBytes, parseAvatarDataUrl, removeAvatar, saveAvatar } from '../services/avatars.js';
 
 type MeDeps = {
   db: Database;
@@ -57,5 +58,56 @@ export async function meRoutes(app: FastifyInstance, opts: MeDeps): Promise<void
       return reply.code(404).send({ error: 'user_not_found' });
     }
     return { user };
+  });
+
+  /**
+   * PUT /me/avatar — upload own photo (F02b). Body: { dataUrl } — a JPEG/PNG/WebP
+   * data URL, pre-resized to 256×256 by the client. The server re-validates
+   * everything (MIME, magic bytes, size); the browser is never trusted.
+   */
+  app.put('/me/avatar', auth, async (request, reply) => {
+    const body = (request.body ?? {}) as { dataUrl?: unknown };
+    const parsed = parseAvatarDataUrl(body.dataUrl);
+    if (!parsed.ok) {
+      if (parsed.reason === 'too_large') {
+        return reply.code(413).send({
+          error: 'image_too_large',
+          message: 'That image is too large. Please use a smaller one.',
+        });
+      }
+      return reply.code(400).send({
+        error: 'invalid_image',
+        message: 'That file is not a supported image (JPEG, PNG, or WebP).',
+      });
+    }
+    const user = await saveAvatar(db, request.user!.id, parsed.mime, parsed.bytes);
+    if (!user) return reply.code(404).send({ error: 'user_not_found' });
+    app.log.info({ userId: user.id, bytes: parsed.bytes.length }, 'avatar uploaded');
+    return { user };
+  });
+
+  /** DELETE /me/avatar — remove own photo; the letter block returns. */
+  app.delete('/me/avatar', auth, async (request) => {
+    const user = await removeAvatar(db, request.user!.id);
+    return { user };
+  });
+
+  /**
+   * GET /users/:id/avatar — serve the uploaded photo. Public: avatars are
+   * public profile data (same as a Google-hosted URL). No auth.
+   */
+  app.get('/users/:id/avatar', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    if (!UUID_RE.test(id)) {
+      return reply.code(404).send();
+    }
+    const avatar = await getAvatarBytes(db, id);
+    if (!avatar) {
+      return reply.code(404).send();
+    }
+    return reply
+      .header('content-type', avatar.mime)
+      .header('cache-control', 'public, max-age=60')
+      .send(avatar.bytes);
   });
 }

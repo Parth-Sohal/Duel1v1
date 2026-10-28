@@ -29,6 +29,13 @@ export const PASSWORD_MAX = 200;
 export const LOGIN_MAX_ATTEMPTS = 8;
 export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
+/** Avatars (docs/features/F02b-avatar-upload.md): client resizes to a 256px square. */
+export const AVATAR_SIZE_PX = 256;
+/** Hard cap on decoded bytes the server accepts (~150 KB). */
+export const AVATAR_MAX_BYTES = 150_000;
+/** Cache-busting param key appended to the served avatar URL. */
+export const AVATAR_URL_PATH = '/avatar';
+
 /**
  * Public user shape. Everything the browser is ever told about a user.
  * No email, no google_id — those never leave the server.

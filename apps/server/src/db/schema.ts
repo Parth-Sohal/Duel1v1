@@ -79,3 +79,15 @@ export const credentials = pgTable('credentials', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Uploaded avatars (docs/features/F02b-avatar-upload.md). Bytes are base64
+ * text (≤256×256, size-capped), stored in our own DB; `users.avatar_url`
+ * points at the versioned public URL that serves them.
+ */
+export const avatars = pgTable('avatars', {
+  userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  mime: text('mime').notNull(),
+  data: text('data').notNull(), // base64
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

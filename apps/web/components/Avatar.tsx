@@ -1,8 +1,9 @@
 import Image from 'next/image';
 
 /**
- * Player avatar. Google-hosted when available, otherwise the first letter
- * on a solid block. Fixed sizes keep the brutalist grid intact.
+ * Player avatar. Sources, in order: an uploaded photo (local `/api/...`
+ * URL, F02b), a Google-hosted picture, or the first letter on a solid
+ * block. Fixed sizes keep the brutalist grid intact.
  */
 export function Avatar({
   displayName,
@@ -16,6 +17,7 @@ export function Avatar({
   className?: string;
 }) {
   if (avatarUrl) {
+    const local = avatarUrl.startsWith('/');
     return (
       <span
         className={`relative inline-block flex-shrink-0 overflow-hidden border border-line-light bg-sand ${className}`}
@@ -26,6 +28,8 @@ export function Avatar({
           alt={`${displayName}'s avatar`}
           fill
           sizes={`${size}px`}
+          loading="eager" // tiny images, always above the fold — lazy never paints
+          unoptimized={local} // local bytes are already 256px — skip the optimizer round-trip
           referrerPolicy="no-referrer"
         />
       </span>
