@@ -1,6 +1,6 @@
 # F01 — Google login and session
 
-Status: planned
+Status: tested (2026-10-28) — production cookie check pending deploy
 Branch: feature/F01-google-login
 Depends on: F00
 
@@ -57,18 +57,18 @@ Migration 0001 creates `users` and `sessions` exactly per `docs/data-model.md` �
 
 ## Test checklist
 
-- [ ] New Google account creates a user; a returning account reuses the row
-- [ ] Refresh keeps you signed in; logout ends the session
-- [ ] Protected page redirects when signed out
-- [ ] A forged or expired Google token is rejected with 401
-- [ ] A stale/deleted session (logout, or row deleted) invalidates the cookie
-- [ ] Sessions store only token hashes (inspect DB row)
-- [ ] Cookie flags correct in production (secure, httpOnly, sameSite=lax)
-- [ ] Login page and header match the design at desktop and mobile width
-- [ ] Lint and build pass
+- [x] New Google account creates a user; a returning account reuses the row (2 accounts → exactly 2 rows across ~7 sign-ins)
+- [x] Refresh keeps you signed in; logout ends the session (verified 2026-10-28: refresh persists, logout deletes the `sessions` row + clears cookie, profile redirects to login)
+- [x] Protected page redirects when signed out (`/profile` → `/login`; `/` routes by session)
+- [x] A forged or expired Google token is rejected with 401
+- [x] A stale/deleted session (logout, or row deleted) invalidates the cookie (`/api/auth/me` → 401 after logout)
+- [x] Sessions store only token hashes (DB probe: `token_hash` = 64 hex chars, never a JWT)
+- [ ] Cookie flags correct in production (secure, httpOnly, sameSite=lax) — **verify at deploy** (local dev intentionally omits `secure`)
+- [x] Login page and header match the design at desktop and mobile width (375/768/1440: no overflow, no overlap, clamp headlines)
+- [x] Lint and build pass
 
 ## Sign-off
 
-- Tested on: —
-- Issues found and fixed: —
-- Follow-ups moved to backlog: —
+- Tested on: 2026-10-28 (live Google sign-in, redirect flow)
+- Issues found and fixed: UI v2 pass fixed 10 owner-reported issues (layout overlap, nav collision, contrast, hierarchy, stat row, primary CTA — commit ee8a2d8). Auth switched from GIS iframe to OAuth redirect flow for real hover/focus states.
+- Follow-ups moved to backlog: verify cookie `Secure` flag at production deploy.
