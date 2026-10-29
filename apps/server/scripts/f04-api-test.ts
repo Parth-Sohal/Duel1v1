@@ -73,19 +73,21 @@ await cleanupUser();
 // start from everything unpublished; the test publishes two challenges itself
 await db.update(challenges).set({ isPublished: false });
 
-const REF_JS = `const l=require('fs').readFileSync(0,'utf8').split(/\\r?\\n/);
-const n=+l[0];const a=l[1].trim().split(/\\s+/).map(Number);const t=+l[2];
-outer: for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){if(a[i]+a[j]===t){console.log(a[i]+' '+a[j]);break outer;}}`;
+const REF_JS = `function pairTargetSum(nums, target) {
+  for (let i = 0; i < nums.length; i++) {
+    for (let j = i + 1; j < nums.length; j++) {
+      if (nums[i] + nums[j] === target) return [nums[i], nums[j]];
+    }
+  }
+  return null;
+}`;
 
-const REF_PY = `import sys
-l=sys.stdin.read().splitlines()
-n=int(l[0]); a=list(map(int,l[1].split())); t=int(l[2])
-done=False
-for i in range(n):
-    for j in range(i+1,n):
-        if a[i]+a[j]==t:
-            print(a[i],a[j]); done=True; break
-    if done: break`;
+const REF_PY = `def pair_target_sum(nums, target):
+    for i in range(len(nums)):
+        for j in range(i + 1, len(nums)):
+            if nums[i] + nums[j] == target:
+                return [nums[i], nums[j]]
+    return None`;
 
 console.log('\n-- publish two challenges for the run --');
 await db.update(challenges).set({ isPublished: true }).where(eq(challenges.slug, 'pair-target-sum'));
@@ -105,6 +107,7 @@ check('list has solved/attempts fields', list.json.challenges?.every((c: any) =>
 const detail = await call('/api/challenges/pair-target-sum', 'GET', undefined, cookie);
 check('GET detail 200', detail.status === 200);
 check('detail has statement + starter code (both langs)', !!detail.json.challenge?.statement && !!detail.json.challenge?.starterCode?.javascript && !!detail.json.challenge?.starterCode?.python);
+check('detail exposes entry functions (both langs)', detail.json.challenge?.entryFunctions?.javascript === 'pairTargetSum' && detail.json.challenge?.entryFunctions?.python === 'pair_target_sum', JSON.stringify(detail.json.challenge?.entryFunctions));
 check('detail shows exactly 2 visible tests', detail.json.challenge?.visibleTests?.length === 2, JSON.stringify(detail.json.challenge?.visibleTests));
 const detailStr = JSON.stringify(detail.json);
 check('detail leaks NO hidden tests', !detailStr.includes('"hidden":true'), 'found hidden:true in detail response');
@@ -119,19 +122,19 @@ check('list without cookie -> 401', noauth.status === 401);
 console.log('\n-- run (visible tests only, not saved) --');
 const runOk = await call('/api/challenges/pair-target-sum/run', 'POST', { language: 'javascript', sourceCode: REF_JS }, cookie);
 check('run correct JS -> accepted', runOk.json.status === 'accepted' && runOk.json.passed === 2 && runOk.json.total === 2, JSON.stringify(runOk.json));
-check('run results expose inputs (visible)', runOk.json.results?.[0]?.input === '4\n1 2 3 4\n7');
+check('run results expose call arguments (visible)', runOk.json.results?.[0]?.args === '[[1,2,3,4],7]' && runOk.json.results?.[0]?.expected === '[3,4]', JSON.stringify(runOk.json.results?.[0]));
 check('run saved nothing', (await call('/api/challenges/pair-target-sum/submissions', 'GET', undefined, cookie)).json.submissions?.length === 0);
 
-const runWrong = await call('/api/challenges/pair-target-sum/run', 'POST', { language: 'javascript', sourceCode: 'console.log("1 2");' }, cookie);
+const runWrong = await call('/api/challenges/pair-target-sum/run', 'POST', { language: 'javascript', sourceCode: 'function pairTargetSum(nums, target) { return [0, 0]; }' }, cookie);
 check('run wrong -> wrong_answer', runWrong.json.status === 'wrong_answer' && runWrong.json.passed === 0, JSON.stringify(runWrong.json.results?.map((r: any) => r.status)));
 
 const runPy = await call('/api/challenges/pair-target-sum/run', 'POST', { language: 'python', sourceCode: REF_PY }, cookie);
 check('run correct Python -> accepted', runPy.json.status === 'accepted', JSON.stringify(runPy.json.results?.map((r: any) => r.status)));
 
-const runTle = await call('/api/challenges/pair-target-sum/run', 'POST', { language: 'javascript', sourceCode: 'while(true){}' }, cookie);
+const runTle = await call('/api/challenges/pair-target-sum/run', 'POST', { language: 'javascript', sourceCode: 'function pairTargetSum() { while(true){} }' }, cookie);
 check('run infinite loop -> time_limit', runTle.json.status === 'time_limit', JSON.stringify(runTle.json.results?.map((r: any) => r.status)));
 
-const runRe = await call('/api/challenges/pair-target-sum/run', 'POST', { language: 'javascript', sourceCode: 'throw new Error("boom");' }, cookie);
+const runRe = await call('/api/challenges/pair-target-sum/run', 'POST', { language: 'javascript', sourceCode: 'function pairTargetSum() { throw new Error("boom"); }' }, cookie);
 check('run throw -> runtime_error', runRe.json.status === 'runtime_error', JSON.stringify(runRe.json.results?.map((r: any) => r.status)));
 
 const runCe = await call('/api/challenges/pair-target-sum/run', 'POST', { language: 'python', sourceCode: 'def oops(:' }, cookie);
@@ -146,9 +149,9 @@ const hiddenResults = sub.json.results?.filter((r: any) => r.hidden === true) ??
 check('submit results include hidden markers', hiddenResults.length === 3, `got ${hiddenResults.length}`);
 check('hidden results leak NO input/expected/stdout', hiddenResults.every((r: any) => !('input' in r) && !('expected' in r) && !('stdout' in r)), JSON.stringify(hiddenResults));
 const visibleResults = sub.json.results?.filter((r: any) => r.hidden === false) ?? [];
-check('visible results keep input+expected+stdout', visibleResults.every((r: any) => typeof r.input === 'string' && typeof r.expected === 'string'));
+check('visible results keep args+expected+stdout', visibleResults.every((r: any) => typeof r.args === 'string' && typeof r.expected === 'string' && typeof r.stdout === 'string'));
 
-const wrongSub = await call('/api/challenges/pair-target-sum/submit', 'POST', { language: 'python', sourceCode: 'print(-1)' }, cookie);
+const wrongSub = await call('/api/challenges/pair-target-sum/submit', 'POST', { language: 'python', sourceCode: 'def pair_target_sum(nums, target):\n    return [0, 0]' }, cookie);
 check('submit wrong -> wrong_answer saved', wrongSub.json.status === 'wrong_answer' && wrongSub.json.passed === 0 && wrongSub.json.total === 5, JSON.stringify({ status: wrongSub.json.status, passed: wrongSub.json.passed, total: wrongSub.json.total }));
 
 const hist = await call('/api/challenges/pair-target-sum/submissions', 'GET', undefined, cookie);

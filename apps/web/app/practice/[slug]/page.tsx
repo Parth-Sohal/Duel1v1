@@ -87,7 +87,7 @@ function ChallengeView({ challenge }: { challenge: ChallengeDetail }) {
           <Headline className="mb-5 text-[clamp(2.25rem,5vw,4rem)]">{challenge.title}</Headline>
           <div className="mb-6 flex flex-wrap items-center gap-2">
             <Chip>{challenge.difficulty}</Chip>
-            {challenge.tags.map((tag) => (
+            {challenge.tags.map((tag: string) => (
               <span key={tag} className="font-mono text-xs text-muted">
                 {tag}
               </span>
@@ -97,12 +97,12 @@ function ChallengeView({ challenge }: { challenge: ChallengeDetail }) {
           <p className="whitespace-pre-wrap font-grotesk text-sm leading-relaxed text-carbon">
             {challenge.statement}
           </p>
-          <SampleTests tests={challenge.visibleTests} />
+          <SampleTests tests={challenge.visibleTests} entryFunction={challenge.entryFunctions.javascript} />
         </>
       }
       right={<CodePanel challenge={challenge} />}
-      leftFooter={`${(challenge.timeLimitMs / 1000).toFixed(0)}s CPU · ${challenge.memoryLimitMb} MB memory · stdin/stdout judging.`}
-      rightFooter="Runs show samples only. Submissions judge hidden tests."
+      leftFooter={`${(challenge.timeLimitMs / 1000).toFixed(0)}s CPU · ${challenge.memoryLimitMb} MB memory · your function's return value is compared against the frozen answer.`}
+      rightFooter="Runs call your function on samples only. Submissions judge hidden tests."
     />
   );
 }

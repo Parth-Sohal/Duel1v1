@@ -30,7 +30,7 @@ One living report for the whole project. Update it at the end of every iteration
 | 8 | Email + password accounts in Iteration 1, simple version (no email verification) | Owner-approved scope addition; real accounts without an email provider | 2026-10-28 |
 | 9 | Avatar uploads stored as base64 bytes in our own database | No third-party storage service; works on free tiers; photos are ≤256×256 and size-capped | 2026-10-28 |
 | 10 | An upload always wins over the Google photo | The player owns their picture; Google sign-in only fills an empty avatar | 2026-10-28 |
-| 11 | Judging style: stdin/stdout | Language-agnostic, exactly how Judge0 works, simplest fair judging; player code reads stdin and prints stdout | 2026-10-29 |
+| 11 | Judging style: **function in, answer out** | The player writes a named function and RETURNS the answer; the server wraps their code so the judge calls it with JSON arguments and compares the returned value. Replaced the original stdin/stdout plan (2026-10-29, owner decision) | 2026-10-29 |
 
 ## 3. Open decisions
 

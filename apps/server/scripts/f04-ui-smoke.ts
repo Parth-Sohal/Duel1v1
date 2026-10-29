@@ -50,10 +50,10 @@ const detail = await getPage('/practice/pair-target-sum');
 check('detail renders 200', detail.status === 200);
 check('detail shows title', detail.html.includes('Pair Target Sum'));
 check('detail shows statement text', detail.html.includes('Exactly one pair of values'));
-check('detail shows sample input', detail.html.includes('1 2 3 4'));
-check('detail shows frozen expected', detail.html.includes('3 4'));
+check('detail shows sample arguments', detail.html.includes('[[1,2,3,4],7]'));
+check('detail shows frozen expected', detail.html.includes('[3,4]'));
 check('detail shows workbench', detail.html.includes('Workbench'));
-check('detail shows starter code', detail.html.includes('readFileSync'));
+check('detail shows starter code', detail.html.includes('pairTargetSum'));
 check('detail has RUN button', detail.html.includes('Run'));
 check('detail has SUBMIT button', detail.html.includes('Submit'));
 const hiddenLeak = /"hidden"\s*:\s*true/.test(detail.html) || /Hidden test/.test(detail.html);
@@ -68,9 +68,14 @@ const run = await fetch(`${WEB}/api/challenges/pair-target-sum/run`, {
   headers: { 'content-type': 'application/json', cookie },
   body: JSON.stringify({
     language: 'javascript',
-    sourceCode: `const l=require('fs').readFileSync(0,'utf8').split(/\\r?\\n/);
-const n=+l[0];const a=l[1].trim().split(/\\s+/).map(Number);const t=+l[2];
-outer: for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){if(a[i]+a[j]===t){console.log(a[i]+' '+a[j]);break outer;}}`,
+    sourceCode: `function pairTargetSum(nums, target) {
+  for (let i = 0; i < nums.length; i++) {
+    for (let j = i + 1; j < nums.length; j++) {
+      if (nums[i] + nums[j] === target) return [nums[i], nums[j]];
+    }
+  }
+  return null;
+}`,
   }),
 });
 const runData = (await run.json()) as { status?: string; passed?: number };

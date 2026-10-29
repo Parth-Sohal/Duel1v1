@@ -19,7 +19,7 @@ export type ChallengeListItem = {
   attempts: number;
 };
 
-export type VisibleTest = { input: string; expected: string };
+export type VisibleTest = { args: unknown[]; expected: string };
 
 export type ChallengeDetail = {
   slug: string;
@@ -28,6 +28,7 @@ export type ChallengeDetail = {
   tags: string[];
   version: number;
   statement: string;
+  entryFunctions: { javascript: string; python: string };
   starterCode: { javascript: string; python: string };
   timeLimitMs: number;
   memoryLimitMb: number;

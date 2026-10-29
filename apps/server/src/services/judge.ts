@@ -145,7 +145,33 @@ export async function runOnce(opts: {
   };
 }
 
-/** Compare a run against the frozen expected output. */
-export function isPass(run: JudgeRun, expected: string): boolean {
-  return run.status === 'accepted' && normalizeOutput(run.stdout) === normalizeOutput(expected);
+/**
+ * Function-call harness (owner decision, 2026-10-29: the player writes a
+ * FUNCTION and returns the answer — no stdin parsing, no printing). The server
+ * wraps their code so the judge calls the entry function with the test's
+ * arguments (delivered as a JSON array on stdin) and prints the return value
+ * as one JSON line. Everything still executes inside Judge0's sandbox.
+ *
+ * Serialization contract (must match across languages):
+ * - JS  : JSON.stringify(value)
+ * - PY  : json.dumps(value, separators=(',', ':'), ensure_ascii=False)
+ * Both produce identical JSON for numbers / strings / arrays / booleans / null.
+ * The last non-empty stdout line is the answer, so stray prints don't break it.
+ */
+export function composeSource(language: Language, userCode: string, entryFunction: string): string {
+  if (language === 'javascript') {
+    return `${userCode}\nif (typeof ${entryFunction} !== 'function') { throw new Error('define the function ${entryFunction}(…)'); }\nconst __args = JSON.parse(require('fs').readFileSync(0, 'utf8'));\nprocess.stdout.write(JSON.stringify(${entryFunction}.apply(null, __args)));\n`;
+  }
+  return `${userCode}\nimport json as __json, sys as __sys\n__args = __json.loads(__sys.stdin.read())\n__fn = globals().get('${entryFunction}')\nif not callable(__fn):\n    raise SystemExit('define the function ${entryFunction}(…)')\nprint(__json.dumps(__fn(*__args), separators=(',', ':'), ensure_ascii=False))\n`;
+}
+
+/** The answer line: the LAST non-empty stdout line (player prints are tolerated). */
+export function answerOf(stdout: string): string {
+  const lines = normalizeOutput(stdout).split('\n').filter((l) => l.trim() !== '');
+  return lines.length > 0 ? lines[lines.length - 1] : '';
+}
+
+/** Compare a harness run against the frozen JSON answer. */
+export function isFunctionPass(run: JudgeRun, expected: string): boolean {
+  return run.status === 'accepted' && answerOf(run.stdout) === expected;
 }

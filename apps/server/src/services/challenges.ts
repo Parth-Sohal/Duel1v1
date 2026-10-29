@@ -6,8 +6,8 @@ import { challengeVersions, challenges, submissions } from '../db/schema.js';
  * Practice-mode data access (docs/features/F04-practice-mode.md).
  */
 
-/** The exact jsonb shape stored per challenge version. */
-export type TestCase = { input: string; expected: string; hidden: boolean };
+/** The exact jsonb shape stored per challenge version. The judge calls the player's function with `args`. */
+export type TestCase = { args: unknown[]; expected: string; hidden: boolean };
 
 /**
  * THE single hidden-test filter. Everything serialized to a player goes
@@ -17,17 +17,30 @@ export type TestCase = { input: string; expected: string; hidden: boolean };
  */
 export function visibleTests(tests: unknown): TestCase[] {
   if (!Array.isArray(tests)) return [];
-  return (tests as TestCase[]).filter((t) => t && typeof t.input === 'string' && !t.hidden);
+  return (tests as TestCase[]).filter((t) => Array.isArray(t.args) && typeof t.expected === 'string' && !t.hidden);
 }
 
-/** Redact per-test results before they are stored or sent: hidden tests keep only pass/fail (+ the player's own stderr — it is their program's output, never the expected answer). */
+/**
+ * Redact per-test results before they are stored or sent: hidden tests keep
+ * only pass/fail (+ the player's own stderr — it is their program's output,
+ * never the expected answer). Visible tests keep the call arguments, the
+ * frozen expected JSON, and what the player's function returned.
+ */
 export function redactResults(
-  results: Array<{ pass: boolean; status: string; hidden: boolean; input?: string; expected?: string; stdout?: string; stderr?: string }>,
+  results: Array<{ pass: boolean; status: string; hidden: boolean; args?: unknown[]; expected?: string; stdout?: string; stderr?: string }>,
 ): Array<{ pass: boolean; status: string; hidden: boolean }> {
   return results.map((r) =>
     r.hidden
       ? { pass: r.pass, status: r.status, hidden: true, ...(r.stderr ? { stderr: r.stderr } : {}) }
-      : { pass: r.pass, status: r.status, hidden: false, input: r.input, expected: r.expected, stdout: r.stdout, ...(r.stderr ? { stderr: r.stderr } : {}) },
+      : {
+          pass: r.pass,
+          status: r.status,
+          hidden: false,
+          args: JSON.stringify(r.args ?? []),
+          expected: r.expected ?? '',
+          stdout: r.stdout ?? '',
+          ...(r.stderr ? { stderr: r.stderr } : {}),
+        },
   );
 }
 

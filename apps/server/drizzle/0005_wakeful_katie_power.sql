@@ -1,0 +1,1 @@
+ALTER TABLE "challenge_versions" ADD COLUMN "entry_functions" jsonb NOT NULL DEFAULT 'null'::jsonb;

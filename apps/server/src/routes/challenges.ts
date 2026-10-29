@@ -11,19 +11,28 @@ import {
   visibleTests,
   type TestCase,
 } from '../services/challenges.js';
-import { isPass, runOnce } from '../services/judge.js';
+import { isFunctionPass, composeSource, runOnce } from '../services/judge.js';
 import { allowJudgeSubmission, recordJudgeSubmission } from '../services/rate-limit.js';
 
 type ChallengeDeps = {
   db: Database;
 };
 
+/** The per-language entry-function names ({ javascript, python }) from a version row. */
+function entryFunctionsOf(v: { entryFunctions: unknown }): { javascript: string; python: string } {
+  const e = (v.entryFunctions ?? {}) as { javascript?: unknown; python?: unknown };
+  return {
+    javascript: typeof e.javascript === 'string' ? e.javascript : '',
+    python: typeof e.python === 'string' ? e.python : '',
+  };
+}
+
 type TestResult = {
   index: number;
   hidden: boolean;
   pass: boolean;
   status: string;
-  input?: string;
+  args?: unknown[];
   expected?: string;
   stdout?: string;
   stderr?: string;
@@ -68,30 +77,34 @@ export async function challengeRoutes(app: FastifyInstance, opts: ChallengeDeps)
     return { language: b.language as Language, sourceCode: b.sourceCode };
   }
 
-  /** Shared judge loop: runs the given tests sequentially, aggregates, redacts. */
+  /** Shared judge loop: runs the given tests sequentially, aggregates, redacts.
+   * The player's function is called with each test's arguments through the
+   * function-call harness (composeSource) — their code never sees test JSON. */
   async function judgeLoop(
     userId: string,
     language: Language,
     sourceCode: string,
+    entryFunction: string,
     tests: TestCase[],
     limits: { timeLimitMs: number; memoryLimitMb: number },
   ): Promise<{ results: TestResult[]; aggregate: ReturnType<typeof aggregate>; latencyMs: number }> {
     const started = Date.now();
+    const composed = composeSource(language, sourceCode, entryFunction);
     const results: TestResult[] = [];
     for (const [index, test] of tests.entries()) {
       const run = await runOnce({
         language,
-        sourceCode,
-        stdin: test.input,
+        sourceCode: composed,
+        stdin: JSON.stringify(test.args),
         timeLimitMs: limits.timeLimitMs,
         memoryLimitMb: limits.memoryLimitMb,
       });
       results.push({
         index,
         hidden: test.hidden,
-        pass: isPass(run, test.expected),
+        pass: isFunctionPass(run, test.expected),
         status: run.status,
-        input: test.input,
+        args: test.args,
         expected: test.expected,
         stdout: run.stdout,
         stderr: run.stderr || run.compileOutput || undefined,
@@ -134,10 +147,11 @@ export async function challengeRoutes(app: FastifyInstance, opts: ChallengeDeps)
         tags: found.challenge.tags,
         version: found.challenge.currentVersion,
         statement: v.statement,
+        entryFunctions: entryFunctionsOf(v),
         starterCode: v.starterCode,
         timeLimitMs: v.timeLimitMs,
         memoryLimitMb: v.memoryLimitMb,
-        visibleTests: visibleTests(v.tests).map((t) => ({ input: t.input, expected: t.expected })),
+        visibleTests: visibleTests(v.tests).map((t) => ({ args: t.args, expected: t.expected })),
       },
     };
   });
@@ -159,14 +173,20 @@ export async function challengeRoutes(app: FastifyInstance, opts: ChallengeDeps)
     if (!found || !found.challenge.isPublished) {
       return reply.code(404).send({ error: 'challenge_not_found' });
     }
+    const runEntry = entryFunctionsOf(found.version)[parsed.language];
+    if (!runEntry) {
+      return reply.code(400).send({ error: 'entry_point_missing' });
+    }
     const { results, aggregate: agg, latencyMs } = await judgeLoop(
       request.user!.id,
       parsed.language,
       parsed.sourceCode,
+      runEntry,
       visibleTests(found.version.tests),
       { timeLimitMs: found.version.timeLimitMs, memoryLimitMb: found.version.memoryLimitMb },
     );
-    return { status: agg.status, passed: results.filter((r) => r.pass).length, total: results.length, results, latencyMs };
+    // Same redaction as Submit: one results shape for the UI (args as JSON string).
+    return { status: agg.status, passed: results.filter((r) => r.pass).length, total: results.length, results: redactResults(results), latencyMs };
   });
 
   /** POST /challenges/:slug/submit — all tests, saved, hidden inputs redacted. */
@@ -187,10 +207,15 @@ export async function challengeRoutes(app: FastifyInstance, opts: ChallengeDeps)
       return reply.code(404).send({ error: 'challenge_not_found' });
     }
     const all = found.version.tests as TestCase[];
+    const submitEntry = entryFunctionsOf(found.version)[parsed.language];
+    if (!submitEntry) {
+      return reply.code(400).send({ error: 'entry_point_missing' });
+    }
     const { results, aggregate: agg, latencyMs } = await judgeLoop(
       request.user!.id,
       parsed.language,
       parsed.sourceCode,
+      submitEntry,
       all,
       { timeLimitMs: found.version.timeLimitMs, memoryLimitMb: found.version.memoryLimitMb },
     );

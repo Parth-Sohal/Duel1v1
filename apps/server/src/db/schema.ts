@@ -116,7 +116,8 @@ export const challenges = pgTable('challenges', {
 
 /**
  * One immutable version of a challenge. Tests are jsonb entries
- * { input, expected, hidden } — hidden tests never leave the server
+ * { args, expected, hidden } — the judge calls the player's function with
+ * `args` and compares the returned value. Hidden tests never leave the server
  * (docs/features/F04-practice-mode.md, risk-register rule).
  */
 export const challengeVersions = pgTable('challenge_versions', {
@@ -124,10 +125,11 @@ export const challengeVersions = pgTable('challenge_versions', {
   challengeId: uuid('challenge_id').notNull().references(() => challenges.id, { onDelete: 'cascade' }),
   version: integer('version').notNull(),
   statement: text('statement').notNull(),
+  entryFunctions: jsonb('entry_functions').notNull(), // { javascript, python } — function the player must write
   starterCode: jsonb('starter_code').notNull(), // { javascript, python }
   timeLimitMs: integer('time_limit_ms').notNull(),
   memoryLimitMb: integer('memory_limit_mb').notNull(),
-  tests: jsonb('tests').notNull(), // { input, expected, hidden }[]
+  tests: jsonb('tests').notNull(), // { args, expected, hidden }[] — args are the function's call arguments
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [unique('challenge_versions_challenge_version_unique').on(t.challengeId, t.version)]);
 

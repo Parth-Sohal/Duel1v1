@@ -17,7 +17,7 @@ type TestResult = {
   hidden: boolean;
   pass: boolean;
   status: string;
-  input?: string;
+  args?: string;
   expected?: string;
   stdout?: string;
   stderr?: string;
@@ -209,7 +209,7 @@ export function CodePanel({ challenge }: { challenge: ChallengeDetail }) {
   );
 }
 
-/** One test row: visible tests show input/expected/your output; hidden tests show pass/fail only. */
+/** One test row: visible tests show args/expected/your return; hidden tests show pass/fail only. */
 function TestRow({ result }: { result: TestResult }) {
   const [open, setOpen] = useState(false);
   const passColor = result.pass ? 'text-accent' : 'text-neutral-400';
@@ -241,20 +241,20 @@ function TestRow({ result }: { result: TestResult }) {
       )}
       {open && result.hidden && (
         <p className="px-4 pb-3 font-grotesk text-sm text-neutral-400">
-          Hidden test — input and expected output stay sealed until you solve it honestly.
+          Hidden test — its arguments stay sealed until you solve it honestly.
         </p>
       )}
     </div>
   );
 }
 
-/** Visible-test detail: the three facts — input, expected, your output (+ stderr when it crashed). */
+/** Visible-test detail: the three facts — arguments, expected, your return value (+ stderr when it crashed). */
 function TestDetail({ result }: { result: TestResult }) {
   return (
     <div className="space-y-2 border-t border-line-dark px-4 py-3">
-      <IODock label="Input" value={result.input ?? ''} />
+      <IODock label="Arguments" value={typeof result.args === 'string' ? result.args : '[]'} />
       <IODock label="Expected" value={result.expected ?? ''} />
-      <IODock label="Your output" value={result.stdout ?? ''} />
+      <IODock label="Your return value" value={result.stdout ?? ''} />
       {result.stderr && result.status !== 'accepted' && (
         <IODock label="Error" value={result.stderr} tone="error" />
       )}
@@ -277,22 +277,22 @@ function IODock({ label, value, tone = 'default' }: { label: string; value: stri
   );
 }
 
-/** Sample tests shown on the cream half (statement side). */
-export function SampleTests({ tests }: { tests: VisibleTest[] }) {
+/** Sample tests shown on the cream half (statement side): the call arguments and the frozen answer. */
+export function SampleTests({ tests, entryFunction }: { tests: VisibleTest[]; entryFunction: string }) {
   return (
     <div className="mt-8">
       <p className="mb-3 font-mono text-xs font-semibold uppercase tracking-[0.1em] text-muted">
-        Sample tests
+        Sample tests {entryFunction && <span className="normal-case tracking-[0.05em]">— {entryFunction}(…)</span>}
       </p>
       <div className="space-y-3">
         {tests.map((t, i) => (
           <div key={i} className="grid gap-3 border border-line-light bg-sand/60 p-4 sm:grid-cols-2">
             <div>
               <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
-                Input {tests.length > 1 ? i + 1 : ''}
+                Arguments {tests.length > 1 ? i + 1 : ''}
               </p>
               <pre className="overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-carbon">
-                {t.input}
+                {JSON.stringify(t.args)}
               </pre>
             </div>
             <div>

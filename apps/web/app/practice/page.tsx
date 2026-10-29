@@ -107,8 +107,9 @@ export default async function PracticePage() {
           </div>
           <Headline className="mb-6">Practice.</Headline>
           <p className="mb-10 max-w-md font-grotesk text-sm leading-relaxed text-muted">
-            Read the problem, write code, run it against the samples, submit against everything. No opponent yet —
-            this is where the reps happen before the duels.
+            Read the problem, write the function, run it against the samples, submit against everything. You return
+            the answer — the judge calls your function. No opponent yet; this is where the reps happen before the
+            duels.
           </p>
 
           <div className="mb-10 grid max-w-md grid-cols-2 gap-x-8 gap-y-6">
@@ -127,8 +128,9 @@ export default async function PracticePage() {
               How judging works
             </div>
             <p className="font-grotesk text-sm leading-relaxed text-muted">
-              RUN checks the visible samples only and saves nothing. SUBMIT judges the hidden tests too — pass them
-              all and the challenge is marked solved.
+              RUN calls your function on the visible samples only and saves nothing. SUBMIT judges the hidden tests
+              too — pass them all and the challenge is marked solved. You return the answer; you never parse input
+              or print it.
             </p>
           </div>
         </>

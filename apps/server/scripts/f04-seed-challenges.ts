@@ -1,38 +1,35 @@
 /**
  * F04 seed (docs/features/F04-practice-mode.md): author 8 original challenges,
- * FREEZE the expected outputs by running each reference solution (JavaScript
- * AND Python) through Judge0 on every input, verify both languages agree,
- * then insert into the DB as UNPUBLISHED (owner signs off before we publish).
+ * FREEZE the expected answers by running each reference solution (JavaScript
+ * AND Python) through Judge0 with the real function-call harness, verify both
+ * languages agree, then insert into the DB as UNPUBLISHED (owner signs off
+ * before we publish).
  *
- * Expected outputs are never hand-typed — "correct" is whatever a working
- * reference program actually prints. Run with: npx tsx scripts/f04-seed-challenges.ts
+ * The player writes a FUNCTION and returns the answer; the server wraps their
+ * code so the judge calls it with the test's arguments (JSON on stdin) and
+ * compares the returned value. Expected outputs are never hand-typed —
+ * "correct" is whatever a working reference function actually returns.
+ * Run with: npx tsx scripts/f04-seed-challenges.ts
  */
 import 'dotenv/config';
 import { inArray } from 'drizzle-orm';
 import { createDb } from '../src/db/index.js';
 import { challengeVersions, challenges } from '../src/db/schema.js';
-import { normalizeOutput, runOnce } from '../src/services/judge.js';
+import { answerOf, composeSource, runOnce } from '../src/services/judge.js';
 
-type SeedTest = { input: string; hidden: boolean };
+type SeedTest = { args: unknown[]; hidden: boolean };
 
 type SeedChallenge = {
   slug: string;
   title: string;
   difficulty: 'easy' | 'medium';
   tags: string[];
+  entryFunctions: { javascript: string; python: string };
   statement: string;
   starterCode: { javascript: string; python: string };
   reference: { javascript: string; python: string };
   tests: SeedTest[];
 };
-
-const JS_STDIN = `// Read all of stdin, then print your answer.
-const input = require('fs').readFileSync(0, 'utf8');
-`;
-
-const PY_STDIN = `import sys
-data = sys.stdin.read()
-`;
 
 const CHALLENGES: SeedChallenge[] = [
   {
@@ -40,39 +37,50 @@ const CHALLENGES: SeedChallenge[] = [
     title: 'Pair Target Sum',
     difficulty: 'easy',
     tags: ['two-pointers', 'arrays'],
-    statement: `You are given N integers and a target. Exactly one pair of values in the list adds up to the target. Print that pair, space-separated, in the order the values appear when you scan the list from the left.
+    entryFunctions: { javascript: 'pairTargetSum', python: 'pair_target_sum' },
+    statement: `Write the function pairTargetSum(nums, target).
 
-INPUT
-Line 1: N (2 <= N <= 2000)
-Line 2: N integers (-10^9 <= v <= 10^9)
-Line 3: the target
+Exactly one pair of values in nums adds up to target. Return that pair as
+[a, b], in the order the values appear when you scan the list from the left.
 
-OUTPUT
-The two values that sum to the target, in order of appearance.`,
+PARAMETERS
+- nums: array of integers (2 <= length <= 2000, values up to ±10^9)
+- target: integer
+
+RETURNS
+An array holding the two values, in order of appearance.`,
     starterCode: {
-      javascript: JS_STDIN + `// Line 1: N, line 2: the values, line 3: the target.\n`,
-      python: PY_STDIN + `# Line 1: N, line 2: the values, line 3: the target.\n`,
+      javascript: `function pairTargetSum(nums, target) {
+  // find the pair and return [a, b]
+}
+`,
+      python: `def pair_target_sum(nums, target):
+    # find the pair and return [a, b]
+    pass
+`,
     },
     reference: {
-      javascript: `const l=require('fs').readFileSync(0,'utf8').split(/\\r?\\n/);
-const n=+l[0];const a=l[1].trim().split(/\\s+/).map(Number);const t=+l[2];
-outer: for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){if(a[i]+a[j]===t){console.log(a[i]+' '+a[j]);break outer;}}`,
-      python: `import sys
-l=sys.stdin.read().splitlines()
-n=int(l[0]); a=list(map(int,l[1].split())); t=int(l[2])
-done=False
-for i in range(n):
-    for j in range(i+1,n):
-        if a[i]+a[j]==t:
-            print(a[i],a[j]); done=True; break
-    if done: break`,
+      javascript: `function pairTargetSum(nums, target) {
+  for (let i = 0; i < nums.length; i++) {
+    for (let j = i + 1; j < nums.length; j++) {
+      if (nums[i] + nums[j] === target) return [nums[i], nums[j]];
+    }
+  }
+  return null;
+}`,
+      python: `def pair_target_sum(nums, target):
+    for i in range(len(nums)):
+        for j in range(i + 1, len(nums)):
+            if nums[i] + nums[j] == target:
+                return [nums[i], nums[j]]
+    return None`,
     },
     tests: [
-      { input: '4\n1 2 3 4\n7', hidden: false },
-      { input: '5\n-5 10 3 1 8\n3', hidden: false },
-      { input: '3\n-3 -7 -1\n-10', hidden: true },
-      { input: '2\n5 5\n10', hidden: true },
-      { input: '4\n2000000000 -2000000000 300000000 -1000000000\n0', hidden: true },
+      { args: [[1, 2, 3, 4], 7], hidden: false },
+      { args: [[-5, 10, 3, 1, 8], 3], hidden: false },
+      { args: [[-3, -7, -1], -10], hidden: true },
+      { args: [[5, 5], 10], hidden: true },
+      { args: [[2000000000, -2000000000, 300000000, -1000000000], 0], hidden: true },
     ],
   },
   {
@@ -80,32 +88,41 @@ for i in range(n):
     title: 'Reverse Words',
     difficulty: 'easy',
     tags: ['strings'],
-    statement: `Read every line of input. For each line, print its words in reverse order, separated by single spaces.
+    entryFunctions: { javascript: 'reverseWords', python: 'reverse_words' },
+    statement: `Write the function reverseWords(lines).
 
-INPUT
-Up to 100 lines of text (each under 200 characters).
+For each string in lines, return it with its words in reverse order,
+separated by single spaces. Word splitting ignores repeated spaces.
 
-OUTPUT
-One line per input line, words reversed.`,
+PARAMETERS
+- lines: array of strings (up to 100, each under 200 characters)
+
+RETURNS
+An array of strings, one per input line, words reversed.`,
     starterCode: {
-      javascript: JS_STDIN + `// Split on newlines; watch the trailing newline.\n`,
-      python: PY_STDIN + `# splitlines() handles the trailing newline for you.\n`,
+      javascript: `function reverseWords(lines) {
+  // reverse the words of each line
+}
+`,
+      python: `def reverse_words(lines):
+    # reverse the words of each line
+    pass
+`,
     },
     reference: {
-      javascript: `let ls=require('fs').readFileSync(0,'utf8').split(/\\r?\\n/);
-if(ls.length&&ls[ls.length-1]==='')ls.pop();
-console.log(ls.map(x=>x.trim().split(/\\s+/).filter(Boolean).reverse().join(' ')).join('\\n'));`,
-      python: `import sys
-ls=sys.stdin.read().splitlines()
-print('\\n'.join(' '.join(reversed(x.split())) for x in ls))`,
+      javascript: `function reverseWords(lines) {
+  return lines.map((line) => line.trim().split(/\\s+/).filter(Boolean).reverse().join(' '));
+}`,
+      python: `def reverse_words(lines):
+    return [' '.join(reversed(line.split())) for line in lines]`,
     },
     tests: [
-      { input: 'hello world foo', hidden: false },
-      { input: 'one', hidden: false },
-      { input: 'a  b   c', hidden: true },
-      { input: 'x y\np q\nlast line here', hidden: true },
+      { args: [['hello world foo']], hidden: false },
+      { args: [['one']], hidden: false },
+      { args: [['a  b   c']], hidden: true },
+      { args: [['x y', 'p q', 'last line here']], hidden: true },
       {
-        input: Array.from({ length: 50 }, (_, i) => 'w' + i + ' w' + (i + 1)).join('\n'),
+        args: [Array.from({ length: 50 }, (_, i) => `w${i} w${i + 1}`)],
         hidden: true,
       },
     ],
@@ -115,40 +132,50 @@ print('\\n'.join(' '.join(reversed(x.split())) for x in ls))`,
     title: 'First Duplicate',
     difficulty: 'easy',
     tags: ['hashmap'],
-    statement: `Scan a list of integers from left to right and print the FIRST value that appears a second time. If no value ever repeats, print -1.
+    entryFunctions: { javascript: 'firstDuplicate', python: 'first_duplicate' },
+    statement: `Write the function firstDuplicate(nums).
 
-INPUT
-Line 1: N (1 <= N <= 100000)
-Line 2: N integers
+Scan the list from left to right and return the FIRST value that appears a
+second time. If no value ever repeats, return -1.
 
-OUTPUT
+PARAMETERS
+- nums: array of integers (1 <= length <= 100000)
+
+RETURNS
 The first repeated value, or -1.`,
     starterCode: {
-      javascript: JS_STDIN + `// A set of seen values is enough.\n`,
-      python: PY_STDIN + `# A set of seen values is enough.\n`,
+      javascript: `function firstDuplicate(nums) {
+  // a set of seen values is enough
+}
+`,
+      python: `def first_duplicate(nums):
+    # a set of seen values is enough
+    pass
+`,
     },
     reference: {
-      javascript: `const l=require('fs').readFileSync(0,'utf8').split(/\\r?\\n/);
-const a=l[1].trim().split(/\\s+/).map(Number);
-const seen=new Set();let ans=-1;
-for(const v of a){if(seen.has(v)){ans=v;break;}seen.add(v);}
-console.log(ans);`,
-      python: `import sys
-l=sys.stdin.read().splitlines()
-a=list(map(int,l[1].split()))
-seen=set(); ans=-1
-for v in a:
-    if v in seen:
-        ans=v; break
-    seen.add(v)
-print(ans)`,
+      javascript: `function firstDuplicate(nums) {
+  const seen = new Set();
+  for (const v of nums) {
+    if (seen.has(v)) return v;
+    seen.add(v);
+  }
+  return -1;
+}`,
+      python: `def first_duplicate(nums):
+    seen = set()
+    for v in nums:
+        if v in seen:
+            return v
+        seen.add(v)
+    return -1`,
     },
     tests: [
-      { input: '4\n1 2 3 4', hidden: false },
-      { input: '6\n3 1 3 2 1 3', hidden: false },
-      { input: '5\n7 7 7 7 7', hidden: true },
-      { input: '5\n1 2 3 1 1', hidden: true },
-      { input: '1\n42', hidden: true },
+      { args: [[1, 2, 3, 4]], hidden: false },
+      { args: [[3, 1, 3, 2, 1, 3]], hidden: false },
+      { args: [[7, 7, 7, 7, 7]], hidden: true },
+      { args: [[1, 2, 3, 1, 1]], hidden: true },
+      { args: [[42]], hidden: true },
     ],
   },
   {
@@ -156,43 +183,54 @@ print(ans)`,
     title: 'Max Window Sum',
     difficulty: 'medium',
     tags: ['sliding-window', 'arrays'],
-    statement: `Given a list of N integers and a window size K, find the largest possible sum of any K consecutive values.
+    entryFunctions: { javascript: 'maxWindowSum', python: 'max_window_sum' },
+    statement: `Write the function maxWindowSum(nums, k).
 
-INPUT
-Line 1: N and K (1 <= K <= N <= 100000)
-Line 2: N integers (-10000 <= v <= 10000)
+Find the largest possible sum of any k consecutive values in nums.
 
-OUTPUT
+PARAMETERS
+- nums: array of integers (1 <= k <= length <= 100000, values in [-10000, 10000])
+- k: the window size
+
+RETURNS
 The maximum window sum.`,
     starterCode: {
-      javascript: JS_STDIN + `// Slide the window: add the entering value, drop the leaving one.\n`,
-      python: PY_STDIN + `# Slide the window: add the entering value, drop the leaving one.\n`,
+      javascript: `function maxWindowSum(nums, k) {
+  // slide the window: add the entering value, drop the leaving one
+}
+`,
+      python: `def max_window_sum(nums, k):
+    # slide the window: add the entering value, drop the leaving one
+    pass
+`,
     },
     reference: {
-      javascript: `const l=require('fs').readFileSync(0,'utf8').split(/\\r?\\n/);
-const [n,k]=l[0].trim().split(/\\s+/).map(Number);
-const a=l[1].trim().split(/\\s+/).map(Number);
-let sum=0;for(let i=0;i<k;i++)sum+=a[i];
-let best=sum;
-for(let i=k;i<n;i++){sum+=a[i]-a[i-k];if(sum>best)best=sum;}
-console.log(best);`,
-      python: `import sys
-l=sys.stdin.read().splitlines()
-n,k=map(int,l[0].split())
-a=list(map(int,l[1].split()))
-s=sum(a[:k]); best=s
-for i in range(k,n):
-    s+=a[i]-a[i-k]
-    if s>best: best=s
-print(best)`,
+      javascript: `function maxWindowSum(nums, k) {
+  let sum = 0;
+  for (let i = 0; i < k; i++) sum += nums[i];
+  let best = sum;
+  for (let i = k; i < nums.length; i++) {
+    sum += nums[i] - nums[i - k];
+    if (sum > best) best = sum;
+  }
+  return best;
+}`,
+      python: `def max_window_sum(nums, k):
+    s = sum(nums[:k])
+    best = s
+    for i in range(k, len(nums)):
+        s += nums[i] - nums[i - k]
+        if s > best:
+            best = s
+    return best`,
     },
     tests: [
-      { input: '5 2\n1 2 3 4 5', hidden: false },
-      { input: '4 4\n10 -5 3 1', hidden: false },
-      { input: '5 3\n-1 -2 -3 -4 -5', hidden: true },
-      { input: '6 1\n5 -2 100 -3 4 -100', hidden: true },
+      { args: [[1, 2, 3, 4, 5], 2], hidden: false },
+      { args: [[10, -5, 3, 1], 4], hidden: false },
+      { args: [[-1, -2, -3, -4, -5], 3], hidden: true },
+      { args: [[5, -2, 100, -3, 4, -100], 1], hidden: true },
       {
-        input: '100000 5000\n' + Array.from({ length: 100000 }, (_, i) => ((i * 7) % 1000) - 500).join(' '),
+        args: [Array.from({ length: 100000 }, (_, i) => ((i * 7) % 1000) - 500), 5000],
         hidden: true,
       },
     ],
@@ -202,48 +240,58 @@ print(best)`,
     title: 'Bracket Check',
     difficulty: 'medium',
     tags: ['stack', 'strings'],
-    statement: `A line contains only the brackets ( ) [ ] { }. Print VALID if every opening bracket is closed by the matching bracket in the right order; otherwise print INVALID. An empty line is VALID.
+    entryFunctions: { javascript: 'bracketCheck', python: 'bracket_check' },
+    statement: `Write the function bracketCheck(s).
 
-INPUT
-One line of brackets (possibly empty, at most 100000 characters).
+s contains only the brackets ( ) [ ] { }. Return true if every opening
+bracket is closed by the matching bracket in the right order, otherwise
+false. An empty string is valid.
 
-OUTPUT
-VALID or INVALID.`,
+PARAMETERS
+- s: a string of brackets (possibly empty, at most 100000 characters)
+
+RETURNS
+true or false.`,
     starterCode: {
-      javascript: JS_STDIN + `// Push openings, pop on a close - the pair must match.\n`,
-      python: PY_STDIN + `# Push openings, pop on a close - the pair must match.\n`,
+      javascript: `function bracketCheck(s) {
+  // push openings, pop on a close - the pair must match
+}
+`,
+      python: `def bracket_check(s):
+    # push openings, pop on a close - the pair must match
+    pass
+`,
     },
     reference: {
-      javascript: `const s=require('fs').readFileSync(0,'utf8').split(/\\r?\\n/)[0]??'';
-const pairs={')':'(',']':'[','}':'{'};
-const st=[];let ok=true;
-for(const ch of s){
-  if(ch==='('||ch==='['||ch==='{')st.push(ch);
-  else if(ch===')'||ch===']'||ch==='}'){if(st.pop()!==pairs[ch]){ok=false;break;}}
-}
-console.log(ok&&st.length===0?'VALID':'INVALID');`,
-      python: `import sys
-s=sys.stdin.read().split('\\n')[0]
-pairs={')':'(',']':'[','}':'{'}
-st=[]; ok=True
-for ch in s:
-    if ch in '([{':
-        st.append(ch)
-    elif ch in ')]}':
-        if not st or st.pop()!=pairs[ch]:
-            ok=False; break
-print('VALID' if ok and not st else 'INVALID')`,
+      javascript: `function bracketCheck(s) {
+  const pairs = { ')': '(', ']': '[', '}': '{' };
+  const st = [];
+  for (const ch of s) {
+    if (ch === '(' || ch === '[' || ch === '{') st.push(ch);
+    else if (ch === ')' || ch === ']' || ch === '}') {
+      if (st.pop() !== pairs[ch]) return false;
+    }
+  }
+  return st.length === 0;
+}`,
+      python: `def bracket_check(s):
+    pairs = {')': '(', ']': '[', '}': '{'}
+    st = []
+    for ch in s:
+        if ch in '([{':
+            st.append(ch)
+        elif ch in ')]}':
+            if not st or st.pop() != pairs[ch]:
+                return False
+    return not st`,
     },
     tests: [
-      { input: '()', hidden: false },
-      { input: '([)]', hidden: false },
-      { input: '', hidden: true },
-      { input: '{{[()]}}', hidden: true },
-      { input: '(', hidden: true },
-      {
-        input: '['.repeat(2000) + ']'.repeat(2000),
-        hidden: true,
-      },
+      { args: ['()'], hidden: false },
+      { args: ['([)]'], hidden: false },
+      { args: [''], hidden: true },
+      { args: ['{{[()]}}'], hidden: true },
+      { args: ['('], hidden: true },
+      { args: ['['.repeat(2000) + ']'.repeat(2000)], hidden: true },
     ],
   },
   {
@@ -251,37 +299,52 @@ print('VALID' if ok and not st else 'INVALID')`,
     title: 'Climb Stairs',
     difficulty: 'medium',
     tags: ['dynamic-programming'],
-    statement: `You are climbing a staircase with N steps. Each move you take either 1 or 2 steps. Count the number of distinct ways to reach the top, modulo 1000000007.
+    entryFunctions: { javascript: 'climbStairs', python: 'climb_stairs' },
+    statement: `Write the function climbStairs(n).
 
-INPUT
-One integer N (1 <= N <= 100000).
+You are climbing a staircase with n steps; each move you take either 1 or 2
+steps. Return the number of distinct ways to reach the top, modulo
+1000000007.
 
-OUTPUT
+PARAMETERS
+- n: the number of steps (1 <= n <= 100000)
+
+RETURNS
 The number of ways, modulo 1000000007.`,
     starterCode: {
-      javascript: JS_STDIN + `// ways(n) = ways(n-1) + ways(n-2). Keep only the last two.\n`,
-      python: PY_STDIN + `# ways(n) = ways(n-1) + ways(n-2). Keep only the last two.\n`,
+      javascript: `function climbStairs(n) {
+  // ways(n) = ways(n-1) + ways(n-2). Keep only the last two.
+}
+`,
+      python: `def climb_stairs(n):
+    # ways(n) = ways(n-1) + ways(n-2). Keep only the last two.
+    pass
+`,
     },
     reference: {
-      javascript: `const n=parseInt(require('fs').readFileSync(0,'utf8').trim(),10);
-const M=1000000007;
-let a=1,b=1; // ways(0)=1, ways(1)=1
-for(let i=2;i<=n;i++){const c=(a+b)%M;a=b;b=c;}
-console.log(b);`,
-      python: `import sys
-n=int(sys.stdin.read().strip())
-M=1000000007
-a,b=1,1  # ways(0)=1, ways(1)=1
-for _ in range(2,n+1):
-    a,b=b,(a+b)%M
-print(b)`,
+      javascript: `function climbStairs(n) {
+  const M = 1000000007;
+  let a = 1, b = 1; // ways(0)=1, ways(1)=1
+  for (let i = 2; i <= n; i++) {
+    const c = (a + b) % M;
+    a = b;
+    b = c;
+  }
+  return b;
+}`,
+      python: `def climb_stairs(n):
+    M = 1000000007
+    a, b = 1, 1  # ways(0)=1, ways(1)=1
+    for _ in range(2, n + 1):
+        a, b = b, (a + b) % M
+    return b`,
     },
     tests: [
-      { input: '2', hidden: false },
-      { input: '5', hidden: false },
-      { input: '1', hidden: true },
-      { input: '30', hidden: true },
-      { input: '100000', hidden: true },
+      { args: [2], hidden: false },
+      { args: [5], hidden: false },
+      { args: [1], hidden: true },
+      { args: [30], hidden: true },
+      { args: [100000], hidden: true },
     ],
   },
   {
@@ -289,38 +352,45 @@ print(b)`,
     title: 'Rotate Array',
     difficulty: 'easy',
     tags: ['arrays'],
-    statement: `Rotate a list of N integers to the RIGHT by K positions. The last K values wrap around to the front.
+    entryFunctions: { javascript: 'rotateArray', python: 'rotate_array' },
+    statement: `Write the function rotateArray(nums, k).
 
-INPUT
-Line 1: N and K (1 <= N <= 100000, 0 <= K <= 10^9)
-Line 2: N integers
+Rotate nums to the RIGHT by k positions; the last k values wrap around to
+the front. k can be much larger than the list length.
 
-OUTPUT
-The rotated list, space-separated.`,
+PARAMETERS
+- nums: array of integers (1 <= length <= 100000)
+- k: rotation count (0 <= k <= 10^9)
+
+RETURNS
+The rotated array.`,
     starterCode: {
-      javascript: JS_STDIN + `// K can be much larger than N - reduce it first.\n`,
-      python: PY_STDIN + `# K can be much larger than N - reduce it first.\n`,
+      javascript: `function rotateArray(nums, k) {
+  // reduce k first - it can be much larger than the list
+}
+`,
+      python: `def rotate_array(nums, k):
+    # reduce k first - it can be much larger than the list
+    pass
+`,
     },
     reference: {
-      javascript: `const l=require('fs').readFileSync(0,'utf8').split(/\\r?\\n/);
-const [n,k0]=l[0].trim().split(/\\s+/).map(Number);
-const a=l[1].trim().split(/\\s+/).map(Number);
-const k=k0%n;
-const out=a.slice(n-k).concat(a.slice(0,n-k));
-console.log(out.join(' '));`,
-      python: `import sys
-l=sys.stdin.read().splitlines()
-n,k0=map(int,l[0].split())
-a=list(map(int,l[1].split()))
-k=k0%n
-print(' '.join(map(str,a[n-k:]+a[:n-k])))`,
+      javascript: `function rotateArray(nums, k) {
+  const n = nums.length;
+  const r = k % n;
+  return nums.slice(n - r).concat(nums.slice(0, n - r));
+}`,
+      python: `def rotate_array(nums, k):
+    n = len(nums)
+    r = k % n
+    return nums[n - r:] + nums[:n - r]`,
     },
     tests: [
-      { input: '5 2\n1 2 3 4 5', hidden: false },
-      { input: '3 3\n7 8 9', hidden: false },
-      { input: '3 0\n7 8 9', hidden: true },
-      { input: '4 7\n1 2 3 4', hidden: true },
-      { input: '1 1000000000\n-5', hidden: true },
+      { args: [[1, 2, 3, 4, 5], 2], hidden: false },
+      { args: [[7, 8, 9], 3], hidden: false },
+      { args: [[7, 8, 9], 0], hidden: true },
+      { args: [[1, 2, 3, 4], 7], hidden: true },
+      { args: [[-5], 1000000000], hidden: true },
     ],
   },
   {
@@ -328,40 +398,45 @@ print(' '.join(map(str,a[n-k:]+a[:n-k])))`,
     title: 'Missing Number',
     difficulty: 'easy',
     tags: ['math', 'hashmap'],
-    statement: `You get all the integers from 1 to N except one. Find the missing one.
+    entryFunctions: { javascript: 'missingNumber', python: 'missing_number' },
+    statement: `Write the function missingNumber(n, nums).
 
-INPUT
-Line 1: N (2 <= N <= 100000)
-Line 2: N-1 distinct integers from 1..N (the missing one is not among them)
+You get all the integers from 1 to n except one. Return the missing one.
 
-OUTPUT
+PARAMETERS
+- n: the range end (2 <= n <= 100000)
+- nums: the n-1 distinct integers you were given (from 1..n)
+
+RETURNS
 The missing integer.`,
     starterCode: {
-      javascript: JS_STDIN + `# The sum of 1..N minus the sum you got is the answer.\n`,
-      python: PY_STDIN + `# The sum of 1..N minus the sum you got is the answer.\n`,
+      javascript: `function missingNumber(n, nums) {
+  // the sum of 1..n minus the sum you got is the answer
+}
+`,
+      python: `def missing_number(n, nums):
+    # the sum of 1..n minus the sum you got is the answer
+    pass
+`,
     },
     reference: {
-      javascript: `const l=require('fs').readFileSync(0,'utf8').split(/\\r?\\n/);
-const n=+l[0];
-const a=l[1].trim().split(/\\s+/).map(Number);
-let total=(n*(n+1))/2;
-console.log(total-a.reduce((x,y)=>x+y,0));`,
-      python: `import sys
-l=sys.stdin.read().splitlines()
-n=int(l[0])
-a=list(map(int,l[1].split()))
-print(n*(n+1)//2 - sum(a))`,
+      javascript: `function missingNumber(n, nums) {
+  const total = (n * (n + 1)) / 2;
+  return total - nums.reduce((x, y) => x + y, 0);
+}`,
+      python: `def missing_number(n, nums):
+    return n * (n + 1) // 2 - sum(nums)`,
     },
     tests: [
-      { input: '5\n1 2 4 5', hidden: false },
-      { input: '2\n2', hidden: false },
-      { input: '3\n1 2', hidden: true },
+      { args: [5, [1, 2, 4, 5]], hidden: false },
+      { args: [2, [2]], hidden: false },
+      { args: [3, [1, 2]], hidden: true },
       {
-        input: '100000\n' + Array.from({ length: 100000 }, (_, i) => i + 1).filter((v) => v !== 99999).join(' '),
+        args: [100000, Array.from({ length: 100000 }, (_, i) => i + 1).filter((v) => v !== 99999)],
         hidden: true,
       },
       {
-        input: '100000\n' + Array.from({ length: 100000 }, (_, i) => i + 1).filter((v) => v !== 1).join(' '),
+        args: [100000, Array.from({ length: 100000 }, (_, i) => i + 1).filter((v) => v !== 1)],
         hidden: true,
       },
     ],
@@ -384,6 +459,8 @@ async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise
 
 const db = createDb(process.env.DATABASE_URL!).db;
 
+type Frozen = SeedChallenge & { tests: Array<SeedTest & { expected: string }> };
+
 /**
  * Authoring-time judge run: the shared public endpoint intermittently fails
  * (transient network errors, CPU spikes on a loaded box), so authoring runs
@@ -400,20 +477,19 @@ async function authoringRun(opts: { language: 'javascript' | 'python'; sourceCod
   return last!;
 }
 
-type Frozen = SeedChallenge & { tests: Array<SeedTest & { expected: string }> };
-
 async function freezeAndVerify(): Promise<Frozen[]> {
-  type Task = { c: number; t: number; lang: 'javascript' | 'python'; source: string; input: string };
+  type Task = { c: number; t: number; lang: 'javascript' | 'python'; source: string; stdin: string };
   const tasks: Task[] = [];
   CHALLENGES.forEach((c, ci) =>
     c.tests.forEach((t, ti) => {
-      tasks.push({ c: ci, t: ti, lang: 'javascript', source: c.reference.javascript, input: t.input });
-      tasks.push({ c: ci, t: ti, lang: 'python', source: c.reference.python, input: t.input });
+      const stdin = JSON.stringify(t.args);
+      tasks.push({ c: ci, t: ti, lang: 'javascript', source: composeSource('javascript', c.reference.javascript, c.entryFunctions.javascript), stdin });
+      tasks.push({ c: ci, t: ti, lang: 'python', source: composeSource('python', c.reference.python, c.entryFunctions.python), stdin });
     }),
   );
 
   console.log(`judging ${tasks.length} reference runs through ${process.env.JUDGE0_API_URL ?? 'https://ce.judge0.com'} ...`);
-  const runs = await mapPool(tasks, 2, (task) => authoringRun({ language: task.lang, sourceCode: task.source, stdin: task.input }));
+  const runs = await mapPool(tasks, 2, (task) => authoringRun({ language: task.lang, sourceCode: task.source, stdin: task.stdin }));
 
   const expected = CHALLENGES.map(() => new Map<number, string>());
   let fails = 0;
@@ -426,12 +502,12 @@ async function freezeAndVerify(): Promise<Frozen[]> {
       fails++;
       continue;
     }
-    const norm = normalizeOutput(run.stdout);
+    const answer = answerOf(run.stdout);
     const seen = expected[task.c].get(task.t);
     if (seen === undefined) {
-      expected[task.c].set(task.t, norm);
-    } else if (seen !== norm) {
-      console.log(`FAIL ${label}: JS and Python disagree\n  js:     ${JSON.stringify(seen)}\n  python: ${JSON.stringify(norm)}`);
+      expected[task.c].set(task.t, answer);
+    } else if (seen !== answer) {
+      console.log(`FAIL ${label}: JS and Python disagree\n  js:     ${JSON.stringify(seen)}\n  python: ${JSON.stringify(answer)}`);
       fails++;
     }
   }
@@ -466,10 +542,11 @@ async function insert(frozen: Frozen[]): Promise<void> {
         challengeId: row.id,
         version: 1,
         statement: c.statement,
+        entryFunctions: c.entryFunctions,
         starterCode: c.starterCode,
         timeLimitMs: 5000, // JS base; the judge applies the Python multiplier
         memoryLimitMb: 256,
-        tests: c.tests.map((t) => ({ input: t.input, expected: t.expected, hidden: t.hidden })),
+        tests: c.tests.map((t) => ({ args: t.args, expected: t.expected, hidden: t.hidden })),
       });
     }
   });
@@ -480,11 +557,10 @@ function reviewTable(frozen: Frozen[]): void {
     console.log(`\n=== ${c.slug} (${c.difficulty}, ${c.tags.join(', ')}) ===`);
     console.log(c.statement);
     for (const [i, t] of c.tests.entries()) {
-      const inPrev = t.input.length > 60 ? t.input.slice(0, 57) + '...' : t.input;
-      const exPrev = t.expected.length > 60 ? t.expected.slice(0, 57) + '...' : t.expected;
+      const argsPrev = JSON.stringify(t.args);
       console.log(`  test ${i + 1} [${t.hidden ? 'HIDDEN' : 'visible'}]`);
-      console.log(`    input:    ${JSON.stringify(inPrev)}`);
-      console.log(`    expected: ${JSON.stringify(exPrev)}`);
+      console.log(`    args:     ${argsPrev.length > 70 ? argsPrev.slice(0, 67) + '...' : argsPrev}`);
+      console.log(`    expected: ${JSON.stringify(t.expected.length > 60 ? t.expected.slice(0, 57) + '...' : t.expected)}`);
     }
   }
 }
