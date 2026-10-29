@@ -109,7 +109,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 
 ---
 
-### [ ] Iteration 2 — Practice mode
+### [x] Iteration 2 — Practice mode
 **Goal:** solve a challenge solo: read it, write code, run it, see results.
 
 **Features**
@@ -119,18 +119,18 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 
 **Tables:** `challenges`, `challenge_versions`, `submissions`.
 
-**Test gate**
-- [ ] Correct solution passes all tests
-- [ ] Wrong solution shows which **sample** test failed with input, expected, and actual output
-- [ ] A failing **hidden** test shows only "test N of M failed" (no input or expected output)
-- [ ] Infinite loop stops at the time limit; memory-hungry code stops at the memory limit
-- [ ] Code cannot reach the network or the game server
-- [ ] Hidden tests never appear in any browser response (check the network tab)
-- [ ] Spamming Run hits the rate limit
-- [ ] Switching language keeps the challenge and loads the right starter code
-- [ ] A correct solution passes in both JavaScript and Python; the Python time limit is scaled so correct code is not failed for being slower
-- [ ] Every seed challenge passes with a reference solution in both JavaScript and Python
-- [ ] A player completes a full practice session end to end
+**Test gate** — all passed 2026-10-29 (function-call judging, decision 11 revised)
+- [x] Correct solution passes all tests
+- [x] Wrong solution shows which **sample** test failed with input, expected, and actual output (arguments / expected / your return value, expandable)
+- [x] A failing **hidden** test shows only "test N of M failed" (no input or expected output)
+- [x] Infinite loop stops at the time limit; memory-hungry code stops at the memory limit (both verified empirically: `while(true){}` → time_limit; 1 GB touched allocation → OOM kill → runtime_error)
+- [x] Code cannot reach the network or the game server (verified empirically: outbound curl from a submission fails in the sandbox)
+- [x] Hidden tests never appear in any browser response (check the network tab)
+- [x] Spamming Run hits the rate limit (21st call in 5-minute window → 429)
+- [x] Switching language keeps the challenge and loads the right starter code (per-language scratchpads, nothing is lost)
+- [x] A correct solution passes in both JavaScript and Python; the Python time limit is scaled so correct code is not failed for being slower (5 s base × 1.5 + 1 s grace)
+- [x] Every seed challenge passes with a reference solution in both JavaScript and Python (82/82 frozen-output runs, JS+PY agree)
+- [x] A player completes a full practice session end to end (owner sessions in the browser + 21/21 UI smoke through the real web proxy)
 
 **Milestone:** this is a usable product on its own. Consider showing it to a few people here.
 
@@ -232,7 +232,8 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 | 2026-10-28 | 1 (F02) | Build + test passed | Name edit (PATCH /api/me) + public profiles (/u/[id]) verified via API matrix and live UI round-trip; responsive at 375/768/1440 |
 | 2026-10-28 | 1 (F03) | Build + test passed | Email + password accounts: scrypt hashing, rate limiting, migration 0002; API matrix + live form round-trip; Google avatar refresh on sign-in |
 | 2026-10-28 | 1 (F02b) | Build + test passed | Own-photo upload: migration 0003 (`avatars`), PUT/DELETE `/api/me/avatar` + public serve, 256×256 client crop, upload beats Google photo; 14/14 API matrix + live UI round-trip + responsive; confirmed in real use |
-| 2026-10-28 | 1 | Iteration complete — report written, merged to main | All account features shipped (F01 Google login, F02 profile, F02b avatar upload, F03 email login); `feature/F02b-avatar-upload` merged to `main` |
+| 2026-10-28 | 1 | Iteration complete - report written, merged to main | All account features shipped (F01 Google login, F02 profile, F02b avatar upload, F03 email login); `feature/F02b-avatar-upload` merged to `main` |
+| 2026-10-29 | 2 (F04) | Build + test passed | Practice mode: migrations 0004–0005, Judge0 via free public CE endpoint (D4), function-call judging (decision 11 revised — owner wants return-value solutions), 8 seed challenges owner-signed-off and published; API matrix 35/35, UI smoke 21/21, prod build green |
 | | | | |
 
 ## 7. Backlog (parked, not in v1)

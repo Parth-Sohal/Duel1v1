@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-29] F04 — Practice mode (built + tested + owner-signed-off)
+- Added: solo practice — `/practice` (challenge roster with solved markers) and `/practice/[slug]` (statement + samples on cream, workbench on dark: JS/PY language chips with per-language scratchpads, monospace editor with tab indent, RUN + SUBMIT, expandable per-test results); PRACTICE nav link added
+- Added: judging model (decision 11, revised by owner) — the player writes a named function and **returns** the answer; the server's harness calls it with JSON arguments and compares the returned value (JS `JSON.stringify` ≡ Python tight `json.dumps`, so both languages agree byte-for-byte)
+- Added: Judge0 execution via the free public CE endpoint `https://ce.judge0.com` (decision D4, no key; env-only swap to self-hosted later); player code only ever runs in the judge sandbox — network access from submissions verified blocked
+- Added: 5 s base CPU limit (Python ×1.5) + 1 s grace — absorbs load spikes on the shared free endpoint; memory 256 MB (OOM kill verified); per-user rate limit 20 Run+Submit per 5 min
+- Added: data — migrations 0004 (`challenges`, `challenge_versions`, `submissions`) + 0005 (`entry_functions`); immutable challenge versions; solved state derived from submissions
+- Added: 8 original seed challenges (owner-signed-off and published) — pair-target-sum, reverse-words, first-duplicate, max-window-sum, bracket-check, climb-stairs, rotate-array, missing-number — each with reference solutions in JS + Python; expected answers frozen by running the references through the real harness (82/82, both languages agree)
+- Verified: API matrix 35/35 (`f04-api-test.ts`: hidden-test leak checks, run/submit verdicts incl. time limit / runtime error / syntax error, rate limit, validation) + UI smoke 21/21 through the real web proxy + owner live sessions; hidden tests never reach the browser (detail, results, SSR HTML, stored submissions all redacted); lint + production build clean
+- Parked: challenge authoring UI, batched judge calls, practice history panel (API exists), Redis-backed rate limiting
+
 ## [2026-10-28] F02b — Avatar upload (built + tested, local)
 - Added: `PUT /api/me/avatar` (upload own photo) and `DELETE /api/me/avatar` (remove) — the client center-crops to a 256×256 JPEG on canvas before upload; the server still re-validates the data URL, MIME allowlist (jpeg/png/webp), magic bytes, and a 150 KB decoded cap (400 invalid / 413 too large)
 - Added: `avatars` table (migration 0003, base64 bytes in our own DB — no third-party storage) and public `GET /api/users/:id/avatar` (correct Content-Type, 60 s cache, versioned `?v=` URL busts caches on re-upload)

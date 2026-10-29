@@ -12,7 +12,7 @@ One living report for the whole project. Update it at the end of every iteration
 | Goal | 1v1 timed coding duels, built as a real product |
 | Stack | Next.js (Vercel), Node + Fastify + Socket.IO (Render), PostgreSQL (Neon), Judge0 (later) |
 | Method | Iterations: build one, test it, report, then start the next |
-| Current iteration | Iteration 1 — Accounts (built + tested; merging to main) |
+| Current iteration | Iteration 2 - Practice mode (built + tested + owner-signed-off; merging to main) |
 | Live URLs | Web: https://duel1v1.vercel.app · Server: https://duel1v1.onrender.com |
 | Last updated | 2026-10-28 |
 
@@ -48,7 +48,7 @@ One living report for the whole project. Update it at the end of every iteration
 |---|---|---|---|
 | 0 | Foundation | F0 setup and deploy | **Done** (2026-10-27) |
 | 1 | Accounts | F1 login, F2 profile, F2b avatar upload, F3 email login | **Done** (2026-10-28) |
-| 2 | Practice mode | F3 challenges, editor, run code | Not started |
+| 2 | Practice mode | F3 challenges, editor, run code | Built + tested (2026-10-29) |
 | 3 | Friend duels | F4 rooms, F5 match engine, F6 history | Not started |
 | 4 | Soft launch | F7 bot and daily challenge, F8 launch hardening | Not started |
 | 5 | Growth | F9 matchmaking, F10 AI analysis, F11 UI polish, F12 C++ and Java | Not started |
@@ -168,6 +168,60 @@ yes — Iteration 2 (practice mode: challenges, editor, run/submit via Judge0)
 - Email verification + password reset (needs an email provider); account linking
 - Redis-backed rate limiting if we ever scale past one server instance
 - Crop/zoom UI and object-storage migration if avatars grow beyond small squares
+
+### Iteration 2 - Practice mode
+
+Branch: `feature/F04-practice-mode` (F04, `docs/features/F04-practice-mode.md`)
+Status: passed
+
+#### What was built
+- **Judging model (decision 11, revised by owner):** the player writes a named function and **returns** the answer. The server composes their code with a per-language harness (`composeSource`): the harness reads a JSON array of call arguments from stdin, calls the function, and prints the return value as one JSON line; the last stdout line is compared against the frozen answer. Serialization is byte-identical across JS (`JSON.stringify`) and Python (`json.dumps` with tight separators).
+- **Executor:** Judge0, free public CE endpoint `https://ce.judge0.com` (decision D4, no key) — env-only swap to self-hosted ("option 2") or a keyed endpoint later. Player code only ever runs in the judge sandbox; the server never executes it.
+- **Data:** migrations 0004 (`challenges`, `challenge_versions`, `submissions`) + 0005 (`entry_functions` jsonb per version). Versions are immutable; `current_version` names the live one.
+- **APIs:** list (with per-player solved/attempts), detail (visible tests only), run (visible samples, not saved), submit (all tests, saved, hidden redacted), own-history. All cookie-authed.
+- **Rate limit:** 20 Run+Submit per user per 5 minutes (in-memory, same pattern as login limiter).
+- **UI:** `/practice` (protocol block + challenge roster with solved markers, empty/offline states) and `/practice/[slug]` (statement + sample arguments/expected on cream; workbench on dark — JS/PY chips with per-language scratchpads, monospace editor with tab indent, RUN/SUBMIT, expandable per-test results with error tracebacks; hidden tests sealed to pass/fail). PRACTICE added to the header nav.
+- **Seeds:** 8 original challenges (no copied wording), each with reference solutions in JS + Python and frozen expected answers; owner signed off and all published.
+
+#### Test results
+
+| Area | Test | Result | Notes |
+|---|---|---|---|
+| API | Full practice matrix | 35/35 pass | `f04-api-test.ts` (auth, list/detail, hidden-test leak checks, run/submit verdicts, history, validation, rate limit) |
+| Seeds | Reference solutions in JS + Python | 82/82 pass | Both languages agree on every frozen answer; nothing hand-typed |
+| UI | Server-rendered practice round-trip | 21/21 pass | `f04-ui-smoke.ts` through the real web proxy incl. a judged run |
+| Gates | Infinite loop → time limit; 1 GB touched allocation → OOM kill; outbound network from a submission blocked | pass | Verified empirically through the real judge |
+| Build | Server `tsc`, web `next build`, lint | pass | Production build green |
+
+#### Issues found
+| # | Issue | Severity | Fixed | Notes |
+|---|---|---|---|---|
+| 1 | Free public Judge0 endpoint has load spikes: correct solutions intermittently judged as `time_limit` | medium | yes | Time limit raised to 5 s base CPU (Python ×1.5) + 1 s `cpu_extra_time` grace; a false TLE is worse than a slow honest verdict. If the endpoint degrades long-term: self-host (option 2) or free RapidAPI key — env-only |
+| 2 | Python syntax errors surface as `runtime_error` (NZEC), not `compile_error` | low | yes (UX) | Interpreted languages: expected; `stderr`/tracebacks now shown to the player in test rows |
+| 3 | Next dev webpack cache corrupted after a large refactor (`Cannot find module './346.js'`) | low | yes | Dev-only; cleared `.next` + restart. Also the reason the production build gate matters |
+
+#### Security and fairness checks
+- [x] Hidden tests never exposed — detail API, run/submit results, SSR HTML, and stored submissions all verified; hidden tests carry only `pass/status/hidden`
+- [x] Player code runs only in the Judge0 sandbox; network access from submissions is blocked (verified empirically)
+- [x] Server decides all outcomes — verdicts from the judge + server-side answer comparison; the browser never computes pass/fail
+- [x] Rate limits working — 21st judge call in a 5-minute window → 429
+- [x] No secrets in git — the public CE endpoint needs no key; templates updated
+
+#### Works on
+- [x] Desktop - [x] Fluid layout (clamped headlines, collapsing grids, overflow-safe code blocks; live browser check + responsive-class audit)
+
+#### Changes to plan or architecture
+- **Decision 11 revised by owner:** stdin/stdout replaced by function-in/answer-out (players write `function name(args) { return answer; }`); harness, data shape (`{ args, expected, hidden }`), and all 8 seeds re-authored
+- Time limit raised from 2 s to 5 s base CPU for the shared free endpoint (see issue 1)
+
+#### Decision: go to the next iteration?
+yes — Iteration 3 (friend duels)
+
+#### Carried to backlog
+- Challenge authoring UI (backlog "CREATE"); difficulty calibration with real players
+- Batched judge submissions (one judge call per submission instead of per test) if latency matters
+- Practice history panel on the detail page (API exists: GET `/:slug/submissions`)
+- Redis-backed rate limiting when scaling past one server instance
 
 ## 6. Risk register
 

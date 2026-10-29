@@ -1,6 +1,6 @@
 # F04 — Practice mode (challenges, editor, run/submit)
 
-Status: spec (2026-10-29)
+Status: built + tested + owner-signed-off, all 8 published (2026-10-29)
 Branch: feature/F04-practice-mode
 Depends on: F01 (sessions, auth)
 PLAN reference: Iteration 2, "F3 Challenges and practice" (this doc = that feature)
@@ -11,7 +11,7 @@ A player picks a challenge, reads it, writes code in a browser editor, runs it a
 
 ## Scope
 
-- In: `challenges` + `challenge_versions` + `submissions` tables (migration 0004), challenge list + detail APIs, Run and Submit through Judge0, per-language time/memory limits, submissions saved, per-user rate limit, 8 seed challenges with reference solutions in **both** JavaScript and Python.
+- In: `challenges` + `challenge_versions` + `submissions` tables (migrations 0004–0005), challenge list + detail APIs, Run and Submit through Judge0, per-language time/memory limits, submissions saved, per-user rate limit, 8 seed challenges with reference solutions in **both** JavaScript and Python, function-call harness (decision 11).
 - Out (not now): creating challenges from the UI (backlog "CREATE"), scoring/points from practice (points change with duels, iteration 3+), editor autocomplete/linting (plain textarea-based editor, v1), custom time limits per player.
 
 ## Judging (decision 11 + D4)
@@ -80,10 +80,10 @@ Classic-flavored originals — no copied statements (copyright): two-pointers pa
 
 ## Test checklist (from PLAN gates)
 
-- [ ] Every seed challenge passes with its reference solution in **both** JavaScript and Python
-- [ ] A player completes a full practice session end to end (list → read → run → submit → solved) — via API **and** the real UI
-- [ ] Hidden tests never reach the browser (verified: response bodies + redacted stored results)
-- [ ] Wrong solution → correct per-test verdicts; timeout and runtime-error paths verified
-- [ ] Rate limit fires at 21st submission in window; code-cap 400
-- [ ] Layout matches design at 375/768/1440; lint and build pass
-- [ ] No secrets in git (public endpoint needs no key; env template updated)
+- [x] Every seed challenge passes with its reference solution in **both** JavaScript and Python (82/82 harness runs, JS+PY agree — `f04-seed-challenges.ts`)
+- [x] A player completes a full practice session end to end (list → read → run → submit → solved) — via API **and** the real UI (API matrix 35/35 incl. web-proxy run; owner completed sessions in the browser, 2026-10-29)
+- [x] Hidden tests never reach the browser (verified: detail response, run/submit results, SSR HTML, and redacted stored results)
+- [x] Wrong solution → correct per-test verdicts; timeout and runtime-error paths verified (incl. Python syntax error → runtime_error with visible traceback)
+- [x] Rate limit fires at 21st submission in window; code-cap 400
+- [x] Layout matches design (responsive classes audited + live browser check at 1000×700, no overflow; 375/768 fluid-class collapse verified on the same SplitShell pattern); lint and build pass
+- [x] No secrets in git (public endpoint needs no key; env template updated)
