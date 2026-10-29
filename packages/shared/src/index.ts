@@ -36,6 +36,28 @@ export const AVATAR_MAX_BYTES = 150_000;
 /** Cache-busting param key appended to the served avatar URL. */
 export const AVATAR_URL_PATH = '/avatar';
 
+/** Code-execution languages at launch (decision D3). Judge0 language ids: 93 = Node.js 18.15.0, 100 = Python 3.12.5. */
+export const LANGUAGES = ['javascript', 'python'] as const;
+export type Language = (typeof LANGUAGES)[number];
+export const JUDGE0_LANGUAGE_IDS: Record<Language, number> = { javascript: 93, python: 100 };
+
+/** Practice mode (docs/features/F04-practice-mode.md). */
+/** Base CPU limit per language run; Python gets the multiplier below.
+ * 5 s (not the contest-standard 2 s): the free shared judge box can inflate
+ * measured CPU time under load, and a false "time limit" is worse than a slow
+ * honest verdict. Real solutions run in well under 1 s. */
+export const RUN_TIME_LIMIT_MS = 5000;
+export const RUN_TIME_MULTIPLIER_PY = 1.5;
+/** Uniform memory cap the server passes to the judge. */
+export const RUN_MEMORY_LIMIT_MB = 256;
+/** Per-user submission rate limit (Run + Submit combined). */
+export const JUDGE_MAX_PER_WINDOW = 20;
+export const JUDGE_WINDOW_MS = 5 * 60 * 1000;
+/** Visible sample tests shown in the editor pane. */
+export const MAX_VISIBLE_TESTS = 3;
+/** Suffixes for the shared test-case jsonb shape: { input, expected, hidden }. */
+export const TEST_JSONB_MAX = 20;
+
 /**
  * Public user shape. Everything the browser is ever told about a user.
  * No email, no google_id — those never leave the server.

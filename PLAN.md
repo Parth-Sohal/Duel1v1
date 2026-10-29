@@ -56,7 +56,7 @@ Not in v1: Redis, job queue, load balancer, microservices, Facebook login, user-
 | D1 | Product name | Iteration 0 | "Coding Duel" (placeholder) | |
 | D2 | AI coding tool used to build | Iteration 0 | none chosen | |
 | D3 | Languages at launch | Iteration 2 | JavaScript and Python | **JavaScript and Python** (decided 2026-10-27) |
-| D4 | Judge0 hosted or self-hosted | Iteration 2 | Hosted | |
+| D4 | Judge0 hosted or self-hosted | Iteration 2 | Hosted | **Hosted** (decided 2026-10-29): free public CE endpoint `https://ce.judge0.com`, no key, verified live; env-only swap to self-hosted/keyed endpoint later if needed |
 | D5 | Points, draw, forfeit rules confirmed | Iteration 3 | +1 / −1 (floor 0), draw no change, 30 s grace | |
 | D6 | Do bot matches change points? | Iteration 4 | No point change | |
 

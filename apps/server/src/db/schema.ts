@@ -3,10 +3,12 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -38,6 +40,9 @@ export const submissionStatusEnum = pgEnum('submission_status', [
   'compile_error',
   'internal_error',
 ]);
+
+/** Practice-mode languages (decision D3). */
+export const languageEnum = pgEnum('language', ['javascript', 'python']);
 
 /** Players (docs/data-model.md §4). email/google_id stay on the server; never public. */
 export const users = pgTable('users', {
@@ -91,3 +96,58 @@ export const avatars = pgTable('avatars', {
   data: text('data').notNull(), // base64
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Practice mode (docs/features/F04-practice-mode.md). A challenge is the
+ * stable identity (slug); `current_version` names the active version row.
+ * Fixing a problem creates version n+1 — a running version never mutates.
+ */
+export const challenges = pgTable('challenges', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  slug: text('slug').notNull().unique(),
+  title: text('title').notNull(),
+  difficulty: difficultyEnum('difficulty').notNull(),
+  tags: text('tags').array().notNull(),
+  currentVersion: integer('current_version').notNull().default(1),
+  isPublished: boolean('is_published').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * One immutable version of a challenge. Tests are jsonb entries
+ * { input, expected, hidden } — hidden tests never leave the server
+ * (docs/features/F04-practice-mode.md, risk-register rule).
+ */
+export const challengeVersions = pgTable('challenge_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  challengeId: uuid('challenge_id').notNull().references(() => challenges.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  statement: text('statement').notNull(),
+  starterCode: jsonb('starter_code').notNull(), // { javascript, python }
+  timeLimitMs: integer('time_limit_ms').notNull(),
+  memoryLimitMb: integer('memory_limit_mb').notNull(),
+  tests: jsonb('tests').notNull(), // { input, expected, hidden }[]
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique('challenge_versions_challenge_version_unique').on(t.challengeId, t.version)]);
+
+/**
+ * Practice submissions. Only SUBMIT is saved (RUN is ephemeral). Results
+ * jsonb is redacted server-side: hidden tests show only hidden=true with
+ * pass/fail — never their input or expected output.
+ */
+export const submissions = pgTable('submissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  challengeId: uuid('challenge_id').notNull().references(() => challenges.id, { onDelete: 'cascade' }),
+  challengeVersionId: uuid('challenge_version_id').notNull().references(() => challengeVersions.id, { onDelete: 'cascade' }),
+  kind: submissionKindEnum('kind').notNull(),
+  language: languageEnum('language').notNull(),
+  status: submissionStatusEnum('status').notNull(),
+  passed: integer('passed').notNull(),
+  total: integer('total').notNull(),
+  results: jsonb('results').notNull(), // redacted per-test results
+  sourceCode: text('source_code').notNull(),
+  judgeLatencyMs: integer('judge_latency_ms'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('submissions_user_created_idx').on(t.userId, t.createdAt)]);

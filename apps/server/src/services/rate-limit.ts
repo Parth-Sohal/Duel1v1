@@ -1,4 +1,9 @@
-import { LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS } from '@coding-arena/shared';
+import {
+  JUDGE_MAX_PER_WINDOW,
+  JUDGE_WINDOW_MS,
+  LOGIN_MAX_ATTEMPTS,
+  LOGIN_WINDOW_MS,
+} from '@coding-arena/shared';
 
 /**
  * In-memory login rate limiter (docs/features/F03-email-login.md): 8 failed
@@ -34,4 +39,25 @@ export function recordFailedLogin(...keys: string[]): void {
 /** Clear the email's failures after a success (IP history stays). */
 export function clearLoginFailures(emailKey: string): void {
   attempts.delete(emailKey);
+}
+
+/**
+ * Practice-mode submission limiter (docs/features/F04-practice-mode.md):
+ * JUDGE_MAX_PER_WINDOW Run+Submit calls per user per JUDGE_WINDOW_MS. In-memory
+ * single-instance, same tradeoff as the login limiter above.
+ */
+const judgeHits = new Map<string, number[]>();
+
+export function allowJudgeSubmission(userId: string): boolean {
+  const now = Date.now();
+  const recent = (judgeHits.get(userId) ?? []).filter((t) => now - t < JUDGE_WINDOW_MS);
+  judgeHits.set(userId, recent);
+  return recent.length < JUDGE_MAX_PER_WINDOW;
+}
+
+export function recordJudgeSubmission(userId: string): void {
+  const now = Date.now();
+  const recent = (judgeHits.get(userId) ?? []).filter((t) => now - t < JUDGE_WINDOW_MS);
+  recent.push(now);
+  judgeHits.set(userId, recent);
 }

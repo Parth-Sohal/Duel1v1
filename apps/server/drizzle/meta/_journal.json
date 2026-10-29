@@ -29,6 +29,13 @@
       "when": 1793167433355,
       "tag": "0003_avatars-table",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793252413909,
+      "tag": "0004_narrow_nekra",
+      "breakpoints": true
     }
   ]
 }

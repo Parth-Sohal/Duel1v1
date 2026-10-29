@@ -28,4 +28,10 @@ export const env = {
   databaseUrl: required('DATABASE_URL'),
   googleClientId: required('GOOGLE_CLIENT_ID'),
   nodeEnv: process.env.NODE_ENV ?? 'development',
+  /**
+   * Judge0 (F04 practice mode). The public CE endpoint needs no key;
+   * a keyed endpoint (RapidAPI Basic $0 / self-hosted) is an env-only swap.
+   */
+  judge0Url: process.env.JUDGE0_API_URL ?? 'https://ce.judge0.com',
+  judge0ApiKey: process.env.JUDGE0_API_KEY ?? '',
 } as const;

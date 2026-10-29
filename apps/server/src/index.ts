@@ -7,6 +7,7 @@ import { createDb } from './db/index.js';
 import { healthRoutes } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
 import { meRoutes } from './routes/me.js';
+import { challengeRoutes } from './routes/challenges.js';
 
 async function main(): Promise<void> {
   const app = Fastify({
@@ -28,6 +29,8 @@ async function main(): Promise<void> {
   await app.register(authRoutes, { db, prefix: '/api' });
   // F02 profile routes: /api/me (GET/PATCH) and /api/users/:id (GET).
   await app.register(meRoutes, { db, prefix: '/api' });
+  // F04 practice routes: /api/challenges (+ /:slug/run|submit|submissions).
+  await app.register(challengeRoutes, { db, prefix: '/api' });
 
   await app.ready();
 
