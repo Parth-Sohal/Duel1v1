@@ -248,6 +248,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 | 2026-10-30 | 4 (F08/F09) | Iteration 4 started | Owner: bots first, randoms after (iteration 5). D5 floor restored (loser pays only what they have, DB CHECK 0010, owner account clamped); push `6342a82` |
 | 2026-10-30 | 4 (F08) | Build + test passed | KERN BOT: migrations 0011 (bot plan on the match row) + 0012 (partial unique `users_is_bot_single` — fixed a 3-KERN race), `POST /api/duels/bot`, sweeper-executed plans (restart-safe), D6 zero deltas end-to-end; bot duel test matrix 29/29; throwaway accounts cleaned |
 | 2026-10-30 | 4 (F09) | Build + test passed | Daily challenge: migration 0013 (`daily_challenges`), deterministic date-seeded pick with no-repeat (services/daily.ts), `GET /api/daily` (signed-out viewable), `/daily` page + countdown + header/practice entries; seed split into `seed-data.ts` and made re-run safe (skips existing slugs); `challenge-verify.ts` pool gate 8/8 via real Judge0; daily matrix 21/21; throwaways cleaned |
+| 2026-10-30 | 4 (F09 streak) | Build + test passed | Owner-requested streak bar at the bottom of `/daily`: last 14 days, orange = daily solved, current + longest streak per player (accepted submits only; open today never breaks the run); matrix extended to 28/28 |
 
 ## 7. Backlog (parked, not in v1)
 

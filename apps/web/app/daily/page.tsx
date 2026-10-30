@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { SplitShell } from '../../components/SplitShell';
 import { DailyCountdown } from '../../components/DailyCountdown';
+import { StreakBar } from '../../components/StreakBar';
 import { Chip, Eyebrow, Headline, Stat } from '../../components/ui';
 import { getCurrentUser } from '../../lib/session';
 import { getDaily } from '../../lib/daily';
@@ -82,6 +83,43 @@ export default async function DailyPage() {
               The pick is fixed server-side before anyone asks — same problem, same clock, no rerolls. While the
               pool has fresh entries, nothing repeats.
             </p>
+          </div>
+
+          {/* F09 streak bar (owner request): last 14 days, orange = daily done. */}
+          <div className="mt-10 max-w-md border-t border-line-light pt-6">
+            <span className="mb-4 block font-mono text-xs font-semibold uppercase tracking-[0.1em] text-muted">
+              Your streak
+            </span>
+            {daily?.streaks ? (
+              <>
+                <StreakBar days={daily.streaks.days} />
+                <div className="mt-5 flex items-baseline gap-8">
+                  <div>
+                    <span className="block font-headline text-3xl font-extrabold leading-none text-accent">
+                      {daily.streaks.current}
+                    </span>
+                    <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
+                      Current
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block font-headline text-3xl font-extrabold leading-none text-carbon">
+                      {daily.streaks.max}
+                    </span>
+                    <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
+                      Longest
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-4 font-grotesk text-xs text-muted">
+                  Orange = the daily solved that day. Solve today&rsquo;s before midnight UTC to keep the run alive.
+                </p>
+              </>
+            ) : (
+              <p className="font-grotesk text-sm leading-relaxed text-muted">
+                Sign in to track your streak — solve the daily on consecutive days and the orange run grows.
+              </p>
+            )}
           </div>
         </>
       }
