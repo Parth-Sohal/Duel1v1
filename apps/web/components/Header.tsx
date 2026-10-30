@@ -45,6 +45,7 @@ export function Header() {
   };
 
   const onProfile = pathname === '/profile';
+  const onDaily = pathname.startsWith('/daily');
   const onPractice = pathname.startsWith('/practice');
   const onPlay = pathname.startsWith('/duel') || pathname.startsWith('/match/');
 
@@ -57,6 +58,17 @@ export function Header() {
     >
       <span>Skill map</span>
       <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+    </Link>
+  );
+
+  const dailyLink = (
+    <Link
+      href="/daily"
+      className={`whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:text-accent ${
+        onDaily ? 'underline decoration-accent decoration-2 underline-offset-8' : ''
+      }`}
+    >
+      Daily
     </Link>
   );
 
@@ -142,6 +154,7 @@ export function Header() {
             <nav aria-label="Primary" className="hidden items-center gap-5 sm:flex">
               {skillMapLink}
               {playLink}
+              {dailyLink}
               {practiceLink}
               <span className="hidden xl:inline">{plannedNav('Rankings')}</span>
             </nav>
@@ -181,6 +194,7 @@ export function Header() {
         <div className="absolute inset-x-0 top-full z-30 flex flex-col gap-4 border-b border-line-light bg-cream px-5 py-5 lg:hidden">
           {skillMapLink}
           {playLink}
+          {dailyLink}
           {practiceLink}
           <span className="sm:hidden">{plannedNav('Rankings')}</span>
           <div className="flex flex-col items-start gap-3 border-t border-line-light pt-4">

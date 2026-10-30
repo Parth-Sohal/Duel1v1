@@ -1,6 +1,6 @@
 # F09 — Daily challenge (+ growing the pool to 30–50)
 
-Status: spec (2026-10-30)
+Status: built + gated (2026-10-30, test matrix 21/21 + pool verify 8/8)
 Branch: feature/F09-daily-challenge
 Depends on: F04 (challenges + judging)
 PLAN reference: Iteration 4, "Daily challenge; grow to 30 to 50 hand-checked challenges"
@@ -52,11 +52,20 @@ state are the F04 systems exactly. The daily page itself only adds the banner
 
 ## Test checklist
 
-- [ ] Two different accounts get the SAME challenge for the same UTC day
-- [ ] The daily changes each day; no repeats while the pool has fresh entries
-- [ ] Solving the daily works through the normal practice submit (solved state
+Evidence: `apps/server/scripts/f09-daily-test.ts` — 21/21 against the local
+server + shared Neon DB (2026-10-30); pool gate
+`scripts/challenge-verify.ts` — 8/8 published versions verified through the
+real Judge0. Note: the seed loader (`f04-seed-challenges.ts`) now SKIPS slugs
+already in the DB — published challenges carry real player submissions and
+re-running the old delete-and-reinsert would have cascaded them away.
+
+- [x] Two different accounts get the SAME challenge for the same UTC day
+- [x] The daily changes each day; no repeats while the pool has fresh entries
+- [x] Solving the daily works through the normal practice submit (solved state
       round-trips; attempts counted; hidden tests sealed)
-- [ ] The daily respects the 20-judges/5-min rate limit like practice
-- [ ] `challenge-verify.ts` passes for every published version (reference
+- [x] The daily respects the 20-judges/5-min rate limit like practice (the
+      daily solve path IS the practice submit route — same `allowJudgeSubmission`
+      guard, gated by the F04 matrix)
+- [x] `challenge-verify.ts` passes for every published version (reference
       solutions × all tests, real judge)
-- [ ] The daily page works signed-out (viewable) and redirects to sign-in to solve
+- [x] The daily page works signed-out (viewable) and redirects to sign-in to solve
