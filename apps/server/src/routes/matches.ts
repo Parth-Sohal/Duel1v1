@@ -168,6 +168,7 @@ export async function matchRoutes(app: FastifyInstance, opts: MatchDeps): Promis
         startedAt: match.startedAt?.toISOString() ?? null,
         endsAt: match.endsAt?.toISOString() ?? null,
         finishedAt: match.finishedAt?.toISOString() ?? null,
+        isBotMatch: match.isBotMatch,
         challenge: {
           slug: detail.challenge.slug,
           title: detail.challenge.title,

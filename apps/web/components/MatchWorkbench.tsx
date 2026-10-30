@@ -35,6 +35,7 @@ type MatchState = {
   startedAt: string | null;
   endsAt: string | null;
   finishedAt: string | null;
+  isBotMatch: boolean;
   challenge: ChallengeDetail & { visibleTests: VisibleTest[] };
   players: MatchPlayer[];
   mySubmission: { id: string; status: string; passed: number; total: number; language: string; sourceCode: string } | null;
@@ -54,19 +55,28 @@ function outcomeFor(match: MatchState, myUserId: string, deltas: Record<string, 
   // event. Fallback: the match row itself (points_after - points_before), so
   // the REST poll path shows the delta even without the socket payload.
   const me = match.players.find((p) => p.userId === myUserId);
-  const delta = deltas
-    ? (deltas[myUserId] ?? null)
-    : me && me.pointsAfter !== null
-      ? me.pointsAfter - me.pointsBefore
-      : null;
+  const delta = match.isBotMatch
+    ? null // D6: bot duels move no points — show no delta line
+    : deltas
+      ? (deltas[myUserId] ?? null)
+      : me && me.pointsAfter !== null
+        ? me.pointsAfter - me.pointsBefore
+        : null;
   if (match.resultType === 'draw') {
-    return { kind: 'draw', headline: 'Draw.', delta, note: 'The clock ran out. Both duellists lose 10.' };
+    return match.isBotMatch
+      ? { kind: 'draw', headline: 'Draw.', delta, note: 'Neither you nor KERN passed in time. Nothing moves (practice).' }
+      : { kind: 'draw', headline: 'Draw.', delta, note: 'The clock ran out. Both duellists lose 10.' };
   }
   const won = match.winnerId === myUserId;
   if (match.resultType === 'forfeit') {
     return won
-      ? { kind: 'victory', headline: 'Victory.', delta, note: 'Your rival left the arena. Stayer gains +10.' }
-      : { kind: 'forfeit', headline: 'Forfeit.', delta, note: 'You left past the 30-second grace. −10.' };
+      ? { kind: 'victory', headline: 'Victory.', delta, note: match.isBotMatch ? 'KERN left the arena. Practice duel — no points.' : 'Your rival left the arena. Stayer gains +10.' }
+      : { kind: 'forfeit', headline: 'Forfeit.', delta, note: match.isBotMatch ? 'You left past the 30-second grace. Practice duel — no points.' : 'You left past the 30-second grace. −10.' };
+  }
+  if (match.isBotMatch) {
+    return won
+      ? { kind: 'victory', headline: 'Victory.', delta, note: 'You out-coded KERN. Practice duel — no points move.' }
+      : { kind: 'defeat', headline: 'Defeat.', delta, note: 'KERN passed first. Run it back — practice duel, nothing moves.' };
   }
   return won
     ? { kind: 'victory', headline: 'Victory.', delta, note: 'First accepted submission. The swing is yours.' }

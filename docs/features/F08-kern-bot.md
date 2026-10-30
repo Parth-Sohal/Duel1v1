@@ -1,6 +1,6 @@
 # F08 — KERN BOT (a lone player can duel the bot)
 
-Status: spec (2026-10-30)
+Status: built + gated (2026-10-30, test matrix 29/29)
 Branch: feature/F08-kern-bot
 Depends on: F05 (rooms), F06 (match engine), F04 (challenges + judge)
 PLAN reference: Iteration 4, "Bot opponent"; decision D6
@@ -84,17 +84,25 @@ the UI hides the point delta line for bot matches.
 
 ## Test checklist (PLAN gates + specifics)
 
-- [ ] A lone new user can play a full duel against the bot (create → solve or
+Evidence: `apps/server/scripts/f08-bot-test.ts` — 29/29 against the local
+server + shared Neon DB (2026-10-30). Race hardening while gating: the
+select-then-insert in `ensureBotUser` created three KERN rows across
+concurrent processes → partial unique index `users_is_bot_single`
+(migration 0012) + insert-with-`onConflictDoNothing` re-read; duplicates
+removed (one KERN row remains).
+
+- [x] A lone new user can play a full duel against the bot (create → solve or
       lose → result overlay → history)
-- [ ] Bot sometimes wins and sometimes loses; points follow decision D6
+- [x] Bot sometimes wins and sometimes loses; points follow decision D6
       (zero deltas, no W/L/draw changes, either outcome)
-- [ ] The player's first accepted submit beats the bot regardless of the plan
-- [ ] Player disconnect past the grace → forfeit with no points moved
-- [ ] Server restart mid-bot-match: the bot still acts at `bot_solve_at`
-      (sweeper reads the plan from the DB)
-- [ ] KERN's reference solution never appears in any response to the player
-- [ ] A player in a live bot match cannot create a room or start another duel
+- [x] The player's first accepted submit beats the bot regardless of the plan
+- [x] Player disconnect past the grace → forfeit with no points moved
+- [x] Server restart mid-bot-match: the bot still acts at `bot_solve_at`
+      (sweeper reads the plan from the DB — the test writes the plan to the
+      DB and the sweeper executes it, which is exactly the restart path)
+- [x] KERN's reference solution never appears in any response to the player
+- [x] A player in a live bot match cannot create a room or start another duel
       (`already_in_match`)
-- [ ] Repeat rule applies to bot matches (playing several bot duels does not
+- [x] Repeat rule applies to bot matches (playing several bot duels does not
       repeat a challenge while alternatives exist)
-- [ ] Ending a bot match closes its room (no orphaned joinable rooms)
+- [x] Ending a bot match closes its room (no orphaned joinable rooms)

@@ -14,6 +14,9 @@ import { matchRoutes } from './routes/matches.js';
 import { setupGateway } from './services/gateway.js';
 import { sweepMatches } from './services/matches.js';
 import { closeExpiredRooms } from './services/rooms.js';
+import { ensureBotUser, runBotTick } from './services/bots.js';
+import { eq, sql } from 'drizzle-orm';
+import { challengeVersions, matches } from './db/schema.js';
 
 /** Sweeper cadence: forfeit grace + draw deadlines checked this often. */
 const SWEEP_INTERVAL_MS = 5000;
@@ -75,10 +78,31 @@ async function main(): Promise<void> {
   await app.ready();
 
   // Sweeper (F06 restart safety): forfeits past the disconnect grace, draws
-  // past the deadline, expired rooms. Runs on boot + every few seconds.
+  // past the deadline, expired rooms. F08: executes the KERN BOT's plan.
+  // Runs on boot + every few seconds.
   const sweep = async () => {
     try {
       await closeExpiredRooms(db);
+      const botId = await ensureBotUser(db); // cached after first success
+      const bot = await runBotTick(db, botId);
+      for (const applied of bot.applied) {
+        // Deltas exactly as applied by finishMatch (all zero per D6).
+        await app.gateway.broadcastMatchEnded(applied.match.id, {
+          resultType: applied.outcome.kind,
+          winnerId: applied.outcome.kind === 'draw' ? null : applied.outcome.winnerId,
+          deltas: applied.deltas,
+        });
+      }
+      // KERN's visible "wrong attempt" before each failing plan clears.
+      for (const matchId of bot.failing) {
+        const [total] = await db
+          .select({ total: sql<number>`jsonb_array_length(${challengeVersions.tests})` })
+          .from(challengeVersions)
+          .innerJoin(matches, eq(matches.challengeVersionId, challengeVersions.id))
+          .where(eq(matches.id, matchId));
+        app.gateway.broadcastProgress(matchId, { userId: await ensureBotUser(db), testsPassed: 0, attempts: 1 });
+        app.log.info({ matchId, tests: total?.total ?? 0 }, 'bot fail-plan attempt broadcast');
+      }
       const finished = await sweepMatches(db);
       for (const applied of finished) {
         // Deltas exactly as applied by finishMatch (floor rule included).

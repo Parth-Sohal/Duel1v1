@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -64,6 +65,9 @@ export const users = pgTable('users', {
   // points never go below 0. finishMatch clamps deltas; this CHECK is the
   // hard guarantee. (The constraint was dropped in 0006, re-added in 0010.)
   check('users_points_non_negative', sql`${t.points} >= 0`),
+  // F08: exactly one KERN row. ensureBotUser is select-then-insert; without
+  // this index three concurrent processes raced and created three KERNs.
+  uniqueIndex('users_is_bot_single').on(t.isBot).where(sql`${t.isBot}`),
 ]);
 
 /** Server-side sessions. Only the SHA-256 hash of the token is stored, never the raw token. */
@@ -195,6 +199,11 @@ export const matches = pgTable('matches', {
   winnerId: uuid('winner_id').references(() => users.id, { onDelete: 'cascade' }), // deleting a winner removes the (now meaningless) match rather than nulling out of a win
   swingPoints: integer('swing_points'),
   isBotMatch: boolean('is_bot_match').notNull().default(false),
+  // F08 KERN BOT plan — decided once at match start, executed by the sweeper
+  // (DB-resident, so a server restart can never lose the bot's move). NULL for
+  // every human match.
+  botWillSolve: boolean('bot_will_solve'),
+  botSolveAt: timestamp('bot_solve_at', { withTimezone: true }),
   startedAt: timestamp('started_at', { withTimezone: true }),
   endsAt: timestamp('ends_at', { withTimezone: true }),
   finishedAt: timestamp('finished_at', { withTimezone: true }),

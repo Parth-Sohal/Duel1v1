@@ -25,6 +25,16 @@ export const SOCKET_TOKEN_TTL_MS = 60 * 1000;
 /** F6 repeat rule: avoid challenges either player solved in their last N matches. */
 export const REPEAT_AVOID_LAST_N = 3;
 
+/** F08 KERN BOT: probability the bot solves before the clock, by difficulty. */
+export const BOT_NAME = 'KERN';
+export const BOT_SOLVE_PROBABILITY = { easy: 0.35, medium: 0.5, hard: 0.65 } as const;
+/** Human-like pace: the bot acts somewhere in this window after the match starts. */
+export const BOT_SOLVE_MIN_MS = 90_000; // earliest KERN ever passes
+export const BOT_SOLVE_MAX_MS = 7 * 60_000; // never inside the last 3 minutes
+/** When the bot's roll says "fail", it still submits one wrong answer here. */
+export const BOT_FAIL_MIN_MS = 2 * 60_000;
+export const BOT_FAIL_MAX_MS = 4 * 60_000;
+
 /** Base paths of the two apps, resolved through their env/config. */
 export const DEFAULT_WEB_PORT = 3000;
 export const DEFAULT_SERVER_PORT = 4000;

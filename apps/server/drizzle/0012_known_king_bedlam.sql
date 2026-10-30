@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "users_is_bot_single" ON "users" USING btree ("is_bot") WHERE "users"."is_bot";
