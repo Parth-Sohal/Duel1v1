@@ -64,7 +64,12 @@ export function RoomLobby({ code, myUserId }: { code: string; myUserId: string }
           return;
         }
         socketRef.current = socket;
-        socket.on('room_state', (state: RoomState) => setRoom(state));
+        socket.on('room_state', (state: RoomState) => {
+          setRoom(state);
+          // The start broadcast can be missed (throttled tab, reconnect); the
+          // room state itself carries the matchId — navigate from it too.
+          if (state.status === 'in_match' && state.matchId) router.push(`/match/${state.matchId}`);
+        });
         socket.on('room_error', (e: { code: string }) => {
           if (e.code === 'room_unavailable') setFatal('This room is gone — invites expire.');
         });
@@ -86,15 +91,20 @@ export function RoomLobby({ code, myUserId }: { code: string; myUserId: string }
     };
   }, [code, router]);
 
-  // Poll fallback when the socket is down (keeps the page truthful).
+  // Poll fallback: when the socket is down, and while waiting for the host to
+  // start (both seated — the window where a missed match_started would strand
+  // the guest in the lobby). REST is authoritative.
   useEffect(() => {
-    if (!error) return;
+    if (!error && room?.status !== 'full') return;
     const t = setInterval(async () => {
       const data = await fetchRoomState(code).catch(() => null);
-      if (data?.room) setRoom(data.room);
-    }, 5000);
+      if (data?.room) {
+        setRoom(data.room);
+        if (data.room.status === 'in_match' && data.room.matchId) router.push(`/match/${data.room.matchId}`);
+      }
+    }, 4000);
     return () => clearInterval(t);
-  }, [code, error]);
+  }, [code, error, room?.status, router]);
 
   const toggleReady = useCallback(() => {
     if (!room || readyBusy) return;

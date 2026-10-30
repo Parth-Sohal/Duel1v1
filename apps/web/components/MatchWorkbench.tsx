@@ -50,7 +50,15 @@ type Outcome = {
 
 function outcomeFor(match: MatchState, myUserId: string, deltas: Record<string, number> | null): Outcome | null {
   if (match.status !== 'finished' || !match.resultType) return null;
-  const delta = deltas ? (deltas[myUserId] ?? null) : null;
+  // Preferred source: the deltas map carried by the submit response / socket
+  // event. Fallback: the match row itself (points_after - points_before), so
+  // the REST poll path shows the delta even without the socket payload.
+  const me = match.players.find((p) => p.userId === myUserId);
+  const delta = deltas
+    ? (deltas[myUserId] ?? null)
+    : me && me.pointsAfter !== null
+      ? me.pointsAfter - me.pointsBefore
+      : null;
   if (match.resultType === 'draw') {
     return { kind: 'draw', headline: 'Draw.', delta, note: 'The clock ran out. Both duellists lose 10.' };
   }
@@ -113,10 +121,14 @@ export function MatchWorkbench({ matchId, myUserId }: { matchId: string; myUserI
   // Initial load + restore outcome if already finished.
   useEffect(() => {
     void (async () => {
-      const m = await load();
-      if (m) {
-        const o = outcomeFor(m, myUserId, null);
-        if (o) setOutcome(o);
+      try {
+        const m = await load();
+        if (m) {
+          const o = outcomeFor(m, myUserId, null);
+          if (o) setOutcome(o);
+        }
+      } catch {
+        /* transient — the poll fallback re-loads while the match is undecided */
       }
     })();
   }, [load, myUserId]);
@@ -133,14 +145,20 @@ export function MatchWorkbench({ matchId, myUserId }: { matchId: string; myUserI
           return;
         }
         socketRef.current = socket;
-        socket.on('connect', () => socket?.emit('match:join', { matchId }));
+        socket.on('connect', () => {
+          socket?.emit('match:join', { matchId });
+        });
         socket.on('progress', (p: { userId: string; testsPassed: number; attempts: number }) => {
           if (p.userId !== myUserId) setOpponentProgress({ testsPassed: p.testsPassed, attempts: p.attempts });
         });
         socket.on('match_ended', async (e: { resultType: string; winnerId: string | null; deltas: Record<string, number> }) => {
           setDeltas(e.deltas ?? null);
-          const m = await load();
-          if (m) setOutcome(outcomeFor(m, myUserId, e.deltas ?? null));
+          try {
+            const m = await load();
+            if (m) setOutcome(outcomeFor(m, myUserId, e.deltas ?? null));
+          } catch {
+            /* transient fetch failure — the poll fallback picks the finish up */
+          }
         });
       } catch {
         /* live updates unavailable; the countdown + manual refresh still work */
@@ -166,13 +184,34 @@ export function MatchWorkbench({ matchId, myUserId }: { matchId: string; myUserI
     }
   }, [countdown, match?.status, outcome, load, myUserId, deltas]);
 
+  // Poll fallback while the duel is live and undecided: REST is authoritative,
+  // so a missed `match_ended` push (reconnect after the broadcast, a throttled
+  // background tab, one dropped event) still flips the overlay within seconds.
+  useEffect(() => {
+    if (!match || outcome || match.status !== 'active') return;
+    const t = setInterval(() => {
+      void load()
+        .then((m) => {
+          if (m && m.status !== 'active') setOutcome(outcomeFor(m, myUserId, deltas));
+        })
+        .catch(() => {
+          /* transient — next tick retries */
+        });
+    }, 4000);
+    return () => clearInterval(t);
+  }, [match, outcome, load, myUserId, deltas]);
+
   const onSubmitted = useCallback(
     (data: { matchFinished?: boolean; matchOutcome?: MatchOutcome | null }) => {
       if (data.matchOutcome) {
         setDeltas(data.matchOutcome.deltas ?? null);
-        void load().then((m) => {
-          if (m) setOutcome(outcomeFor(m, myUserId, data.matchOutcome?.deltas ?? null));
-        });
+        void load()
+          .then((m) => {
+            if (m) setOutcome(outcomeFor(m, myUserId, data.matchOutcome?.deltas ?? null));
+          })
+          .catch(() => {
+            /* transient — the poll fallback picks the finish up */
+          });
       }
     },
     [load, myUserId],
