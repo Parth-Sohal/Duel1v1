@@ -13,6 +13,7 @@ import {
   roomState,
 } from '../services/rooms.js';
 import { startMatch } from '../services/matches.js';
+import { createBotMatch } from '../services/bots.js';
 import { issueSocketToken } from '../services/gateway.js';
 
 /**
@@ -106,6 +107,23 @@ export async function duelRoutes(app: FastifyInstance, opts: DuelDeps): Promise<
   /** GET /duels/socket-token — one-time socket auth token (see F05 spec). */
   app.get('/duels/socket-token', auth, async (request) => {
     return issueSocketToken(request.user!.id);
+  });
+
+  /** POST /duels/bot — one-click duel vs KERN (F08): creates room + seats the
+   * bot + starts the match, then rolls the bot's plan. D6: no points, no stats. */
+  app.post('/duels/bot', auth, async (request, reply) => {
+    const body = (request.body ?? {}) as { difficulty?: unknown };
+    const difficulty =
+      typeof body.difficulty === 'string' && (DIFFICULTIES as readonly string[]).includes(body.difficulty)
+        ? (body.difficulty as (typeof DIFFICULTIES)[number])
+        : null;
+    const result = await createBotMatch(db, request.user!.id, difficulty);
+    if (!result.ok) {
+      const code = result.error === 'challenge_unavailable' ? 503 : 409;
+      return reply.code(code).send({ error: result.error });
+    }
+    app.log.info({ matchId: result.matchId, userId: request.user!.id }, 'bot match started');
+    return { matchId: result.matchId };
   });
 
   /** POST /duels/rooms/:code/start — host only; both ready → creates the match (F06). */

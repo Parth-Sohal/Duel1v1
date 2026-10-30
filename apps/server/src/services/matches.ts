@@ -120,7 +120,10 @@ export async function startMatch(db: Database, room: RoomRow): Promise<StartMatc
 
   const blocker = await activeMatchFor(db, room.hostId);
   if (blocker) return { ok: false, error: 'already_in_match' };
-  if (await activeMatchFor(db, room.guestId)) return { ok: false, error: 'already_in_match' };
+  // The single-match rule is for HUMANS: KERN is stateless and seats many
+  // concurrent bot matches (one per lone player).
+  const [guest] = await db.select({ isBot: users.isBot }).from(users).where(eq(users.id, room.guestId));
+  if (!guest?.isBot && (await activeMatchFor(db, room.guestId))) return { ok: false, error: 'already_in_match' };
 
   const playerIds = [room.hostId, room.guestId];
   const picked = await pickChallenge(db, playerIds, room.difficulty);
@@ -181,12 +184,15 @@ export async function finishMatch(
         finishedAt: now,
       })
       .where(and(eq(matches.id, matchId), eq(matches.status, 'active')))
-      .returning({ id: matches.id, swingPoints: matches.swingPoints, roomId: matches.roomId });
+      .returning({ id: matches.id, swingPoints: matches.swingPoints, roomId: matches.roomId, isBotMatch: matches.isBotMatch });
     if (finished.length === 0) return null; // already finished by the other path
     const match = finished[0];
+    // D6 (owner-confirmed): KERN BOT duels move no points and count no stats.
+    const isBot = match.isBotMatch;
 
     const players = await tx.select().from(matchPlayers).where(eq(matchPlayers.matchId, matchId));
     const rawDeltaOf = (userId: string): number => {
+      if (isBot) return 0; // D6
       if (outcome.kind === 'draw') return -DRAW_PENALTY;
       return outcome.winnerId === userId ? (outcome.kind === 'forfeit' ? FORFEIT_REWARD : match.swingPoints ?? WIN_SWING_MIN) : (outcome.kind === 'forfeit' ? -FORFEIT_PENALTY : -(match.swingPoints ?? WIN_SWING_MIN));
     };
@@ -204,9 +210,9 @@ export async function finishMatch(
         .update(users)
         .set({
           points: sql`${users.points} + ${effective}`,
-          wins: outcome.kind !== 'draw' && outcome.winnerId === p.userId ? sql`${users.wins} + 1` : sql`${users.wins}`,
-          losses: outcome.kind !== 'draw' && outcome.winnerId !== p.userId ? sql`${users.losses} + 1` : sql`${users.losses}`,
-          draws: outcome.kind === 'draw' ? sql`${users.draws} + 1` : sql`${users.draws}`,
+          wins: !isBot && outcome.kind !== 'draw' && outcome.winnerId === p.userId ? sql`${users.wins} + 1` : sql`${users.wins}`,
+          losses: !isBot && outcome.kind !== 'draw' && outcome.winnerId !== p.userId ? sql`${users.losses} + 1` : sql`${users.losses}`,
+          draws: !isBot && outcome.kind === 'draw' ? sql`${users.draws} + 1` : sql`${users.draws}`,
           updatedAt: now,
         })
         .where(eq(users.id, p.userId));
@@ -222,8 +228,8 @@ export async function finishMatch(
 
 export type AppliedOutcome = {
   outcome: Outcome;
-  match: { id: string; swingPoints: number | null; roomId: string | null };
-  /** The deltas actually applied (floored at 0 for poor players). */
+  match: { id: string; swingPoints: number | null; roomId: string | null; isBotMatch?: boolean };
+  /** The deltas actually applied (floored at 0 for poor players; all 0 for bot matches per D6). */
   deltas: Record<string, number>;
 };
 

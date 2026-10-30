@@ -15,6 +15,7 @@ type HistoryRow = {
   status: 'waiting' | 'active' | 'finished';
   resultType: 'win' | 'draw' | 'forfeit' | null;
   winnerId: string | null;
+  isBotMatch?: boolean;
   pointsDelta: number | null;
   opponent: { id: string; displayName: string; avatarUrl: string | null };
   challenge: { slug: string; title: string; difficulty: string };
@@ -130,7 +131,7 @@ export function MatchHistory() {
                   {agoLabel(row.finishedAt)}
                 </p>
               </div>
-              {row.pointsDelta !== null && (
+              {row.pointsDelta !== null && row.pointsDelta !== 0 && (
                 <span
                   className={`flex-shrink-0 font-headline text-xl font-extrabold ${
                     row.pointsDelta >= 0 ? 'text-accent' : 'text-neutral-400'
@@ -138,6 +139,11 @@ export function MatchHistory() {
                 >
                   {row.pointsDelta >= 0 ? '+' : ''}
                   {row.pointsDelta}
+                </span>
+              )}
+              {row.isBotMatch && row.pointsDelta === 0 && (
+                <span className="flex-shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-500">
+                  Practice
                 </span>
               )}
             </div>

@@ -22,9 +22,33 @@ type Difficulty = (typeof DIFFICULTIES)[number]['value'];
 export function DuelLauncher({ displayName }: { displayName: string }) {
   const router = useRouter();
   const [difficulty, setDifficulty] = useState<Difficulty>('ANY');
+  const [opponent, setOpponent] = useState<'rival' | 'bot'>('rival');
   const [creating, setCreating] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const startBotMatch = async () => {
+    setCreating(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/duels/bot', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ difficulty: difficulty === 'ANY' ? null : difficulty }),
+      });
+      const data = (await res.json().catch(() => null)) as { matchId?: string; error?: string } | null;
+      if (res.ok && data?.matchId) {
+        router.push(`/match/${data.matchId}`);
+        return;
+      }
+      if (data?.error === 'already_in_match') setError('You already have a live duel — finish it first.');
+      else setError('Could not start the bot duel. Refresh and try again.');
+    } catch {
+      setError('Could not reach the arena. Check your connection.');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const createRoom = async () => {
     setCreating(true);
@@ -87,8 +111,11 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
             <div className="grid grid-cols-3 gap-3">
               <button
                 type="button"
-                className="border border-carbon bg-carbon px-3 py-4 font-mono text-xs font-bold uppercase tracking-[0.1em] text-cream"
-                aria-pressed="true"
+                onClick={() => setOpponent('rival')}
+                aria-pressed={opponent === 'rival'}
+                className={`px-3 py-4 font-mono text-xs font-bold uppercase tracking-[0.1em] transition-colors ${
+                  opponent === 'rival' ? 'border border-carbon bg-carbon text-cream' : 'border border-line-light bg-sand/60 text-carbon hover:bg-sand'
+                }`}
               >
                 Rival
               </button>
@@ -98,15 +125,22 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
               >
                 Anyone
               </span>
-              <span
-                title="Arrives in a later iteration"
-                className="flex cursor-not-allowed items-center justify-center border border-line-light bg-sand/40 px-3 py-4 font-mono text-xs font-bold uppercase tracking-[0.1em] text-muted"
+              <button
+                type="button"
+                onClick={() => setOpponent('bot')}
+                aria-pressed={opponent === 'bot'}
+                title="Play right now against KERN — practice duel, no points"
+                className={`px-3 py-4 font-mono text-xs font-bold uppercase tracking-[0.1em] transition-colors ${
+                  opponent === 'bot' ? 'border border-carbon bg-carbon text-cream' : 'border border-line-light bg-sand/60 text-carbon hover:bg-sand'
+                }`}
               >
                 Kern bot
-              </span>
+              </button>
             </div>
             <p className="font-grotesk text-xs text-muted">
-              Rival = a friend you invite with a code. Same problem, fastest correct solution wins.
+              {opponent === 'rival'
+                ? 'Rival = a friend you invite with a code. Same problem, fastest correct solution wins.'
+                : 'KERN = the house bot. A full duel through the same engine — practice only: no points, no stats.'}
             </p>
           </div>
 
@@ -153,48 +187,66 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
             </Eyebrow>
           </div>
           <h2 className="mb-3 font-headline text-4xl font-extrabold uppercase tracking-tight text-cream">
-            {displayName.split(' ')[0]}&rsquo;s duel.
+            {opponent === 'bot'
+              ? 'Kern awaits.'
+              : `${displayName.split(' ')[0]}’s duel.`}
           </h2>
           <p className="mb-10 font-grotesk text-sm leading-relaxed text-neutral-300">
-            Create a room and send the invite code to a friend — or paste a code you were sent. You both ready up,
-            the host starts, and the clock decides the rest.
+            {opponent === 'bot'
+              ? 'You get the same problem and the same 10-minute clock as KERN. It solves at a human pace — sometimes it beats you. Practice duel: no points move.'
+              : 'Create a room and send the invite code to a friend — or paste a code you were sent. You both ready up, the host starts, and the clock decides the rest.'}
           </p>
 
-          <button
-            type="button"
-            onClick={createRoom}
-            disabled={creating}
-            className="w-full bg-accent px-6 py-5 font-mono text-sm font-bold uppercase tracking-[0.15em] text-carbon transition-colors hover:bg-[#ff6231] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {creating ? 'Working…' : 'Create room'}
-          </button>
-
-          <div className="my-8 flex items-center gap-4">
-            <span aria-hidden className="h-px flex-1 bg-line-dark" />
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-500">or join</span>
-            <span aria-hidden className="h-px flex-1 bg-line-dark" />
-          </div>
-
-          <div className="flex gap-3">
-            <input
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
-              placeholder="INVITE CODE"
-              maxLength={9}
-              spellCheck={false}
-              aria-label="Invite code"
-              className="min-w-0 flex-1 border border-line-dark bg-surface px-4 py-3.5 font-mono text-sm font-bold uppercase tracking-[0.2em] text-cream outline-none placeholder:text-neutral-600 focus:border-accent"
-            />
+          {opponent === 'bot' && (
             <button
               type="button"
-              onClick={joinRoom}
-              disabled={creating || joinCode.trim().length === 0}
-              className="flex-shrink-0 border border-line-dark bg-surface px-6 py-3.5 font-mono text-xs font-bold uppercase tracking-[0.1em] text-cream transition-colors hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={startBotMatch}
+              disabled={creating}
+              className="w-full bg-accent px-6 py-5 font-mono text-sm font-bold uppercase tracking-[0.15em] text-carbon transition-colors hover:bg-[#ff6231] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Join
+              {creating ? 'Seating KERN…' : 'Play vs KERN'}
             </button>
-          </div>
+          )}
+
+          {opponent === 'rival' && (
+            <>
+              <button
+                type="button"
+                onClick={createRoom}
+                disabled={creating}
+                className="w-full bg-accent px-6 py-5 font-mono text-sm font-bold uppercase tracking-[0.15em] text-carbon transition-colors hover:bg-[#ff6231] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {creating ? 'Working…' : 'Create room'}
+              </button>
+
+              <div className="my-8 flex items-center gap-4">
+                <span aria-hidden className="h-px flex-1 bg-line-dark" />
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-500">or join</span>
+                <span aria-hidden className="h-px flex-1 bg-line-dark" />
+              </div>
+
+              <div className="flex gap-3">
+                <input
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
+                  placeholder="INVITE CODE"
+                  maxLength={9}
+                  spellCheck={false}
+                  aria-label="Invite code"
+                  className="min-w-0 flex-1 border border-line-dark bg-surface px-4 py-3.5 font-mono text-sm font-bold uppercase tracking-[0.2em] text-cream outline-none placeholder:text-neutral-600 focus:border-accent"
+                />
+                <button
+                  type="button"
+                  onClick={joinRoom}
+                  disabled={creating || joinCode.trim().length === 0}
+                  className="flex-shrink-0 border border-line-dark bg-surface px-6 py-3.5 font-mono text-xs font-bold uppercase tracking-[0.1em] text-cream transition-colors hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Join
+                </button>
+              </div>
+            </>
+          )}
 
           {error && <p className="mt-4 font-grotesk text-sm text-accent">{error}</p>}
 
@@ -205,9 +257,9 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
             </div>
             <ul className="space-y-1.5 font-grotesk text-sm leading-relaxed text-neutral-400">
               <li>Same problem, same 10-minute clock. First accepted submission wins.</li>
-              <li>Win: +29 to +31, loser loses the same. Draw (clock out): −10 both.</li>
+              <li>Win: +29 to +31, loser pays the same (never below 0). Draw (clock out): −10 both.</li>
               <li>Leave mid-duel: the stayer gains +10, the leaver loses 10.</li>
-              <li>Points can go below zero. Disconnect grace: 30 seconds.</li>
+              <li>Disconnect grace: 30 seconds. vs KERN: practice — no points, no stats.</li>
             </ul>
           </div>
 

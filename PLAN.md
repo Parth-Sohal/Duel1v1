@@ -185,8 +185,8 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 **Tables:** `daily_challenges`, bot user row.
 
 **Test gate**
-- [ ] A lone new user can play a full duel against the bot
-- [ ] Bot sometimes wins and sometimes loses; points follow decision D6
+- [x] A lone new user can play a full duel against the bot
+- [x] Bot sometimes wins and sometimes loses; points follow decision D6
 - [ ] Daily challenge changes each day
 - [ ] All 30 to 50 challenges pass with their reference solutions
 - [ ] Spam of submits, rooms, and signups is throttled
@@ -244,6 +244,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 | 2026-10-30 | 3 (F05/F06/F07) | **Iteration complete** | Friend duels: rooms + Socket.IO gateway, match engine (D5 points), history + repeat rule; gates: f05 48/48, engine 20/20, soak 62/62, restart 6/6, prod smoke 25/25; merged `88b92d3`; deployed + owner-reviewed |
 | 2026-10-30 | 3 (review fixes) | Shipped | Loser's DEFEAT overlay could be missed → 4 s authoritative poll + self-healing handlers; guest lobby could strand → navigate from room_state + poll. Pushed `a13a667` |
 | 2026-10-30 | 4 (F08/F09) | Iteration 4 started | Owner: bots first, randoms after (iteration 5). D5 floor restored (loser pays only what they have, DB CHECK 0010, owner account clamped); push `6342a82` |
+| 2026-10-30 | 4 (F08) | Build + test passed | KERN BOT: migrations 0011 (bot plan on the match row) + 0012 (partial unique `users_is_bot_single` — fixed a 3-KERN race), `POST /api/duels/bot`, sweeper-executed plans (restart-safe), D6 zero deltas end-to-end; bot duel test matrix 29/29; throwaway accounts cleaned |
 
 ## 7. Backlog (parked, not in v1)
 
