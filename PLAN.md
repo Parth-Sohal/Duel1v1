@@ -58,7 +58,7 @@ Not in v1: Redis, job queue, load balancer, microservices, Facebook login, user-
 | D3 | Languages at launch | Iteration 2 | JavaScript and Python | **JavaScript and Python** (decided 2026-10-27) |
 | D4 | Judge0 hosted or self-hosted | Iteration 2 | Hosted | **Hosted** (decided 2026-10-29): free public CE endpoint `https://ce.judge0.com`, no key, verified live; env-only swap to self-hosted/keyed endpoint later if needed |
 | D5 | Points, draw, forfeit rules confirmed | Iteration 3 | +1 / -1 (floor 0), draw no change, 30 s grace | **Confirmed 2026-10-29 (owner custom rules), floor revised 2026-10-30:** win swing randomized +29…+31 (loser pays the same, **floored at 0 — nobody goes negative**; winner always takes the full swing), draw both −10 (floored), forfeit stayer +10 / leaver −10 (floored), 30 s disconnect grace; new accounts start at 0 |
-| D6 | Do bot matches change points? | Iteration 4 | No point change | |
+| D6 | Do bot matches change points? | Iteration 4 | No point change | **Confirmed 2026-10-30 (owner):** KERN BOT duels move NO points and count NO stats (wins/losses/draws) — pure practice through the real engine. History shows them labeled "vs KERN" with no delta |
 
 ## 4. Iterations
 
@@ -176,8 +176,9 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 **Goal:** safe and fun for real users, even when few are online.
 
 **Features**
-- **F7 Bot opponent and daily challenge:** bot that "solves" at a human-like pace and runs through the same match engine, daily challenge, grow to 30 to 50 hand-checked challenges.
-- **F8 Launch hardening:** rate limits everywhere, structured logs with IDs, error tracking, basic analytics, feedback link, landing page, terms and privacy page, database backups.
+- **F08 KERN BOT** (PLAN "F7" bot opponent): bot that "solves" at a human-like pace and runs through the same match engine (`docs/features/F08-kern-bot.md`).
+- **F09 Daily challenge** (PLAN "F7" second half): same challenge for everyone each day; grow to 30 to 50 hand-checked challenges (`docs/features/F09-daily-challenge.md`).
+- **F10 Launch hardening** (PLAN "F8"): rate limits everywhere, structured logs with IDs, error tracking, basic analytics, feedback link, landing page, terms and privacy page, database backups (`docs/features/F10-hardening.md`).
 
 **UI:** "Play vs Bot" and "Daily challenge" entry points, landing page.
 

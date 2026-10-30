@@ -32,6 +32,7 @@ One living report for the whole project. Update it at the end of every iteration
 | 10 | An upload always wins over the Google photo | The player owns their picture; Google sign-in only fills an empty avatar | 2026-10-28 |
 | 11 | Judging style: **function in, answer out** | The player writes a named function and RETURNS the answer; the server wraps their code so the judge calls it with JSON arguments and compares the returned value. Replaced the original stdin/stdout plan (2026-10-29, owner decision) | 2026-10-29 |
 | 12 | Duel point rules (D5) | Win swing randomized +29…+31 (loser pays the same, floored at 0), draw both −10 (floored), forfeit stayer +10 / leaver −10 (floored), 30 s grace; floor added 2026-10-30 | 2026-10-29 |
+| 13 | Bot matches and points (D6) | KERN BOT duels move no points, count no stats — practice through the real engine; history labeled "vs KERN" | 2026-10-30 |
 
 ## 3. Open decisions
 
@@ -41,7 +42,7 @@ One living report for the whole project. Update it at the end of every iteration
 | D2 | AI coding tool | Iteration 0 | none chosen |
 | D4 | Judge0 hosted or self-hosted | Iteration 2 | Hosted |
 | D5 | Points and draw rule confirmed | Iteration 3 | **Confirmed 2026-10-29, floor revised 2026-10-30:** +29…31 swing (winner full, loser floored at 0), draw −10 both (floored), forfeit +10/−10 (floored) |
-| D6 | Bot matches count toward points | Iteration 4 | Decide in iteration 4 |
+| D6 | Bot matches count toward points | Iteration 4 | **Confirmed 2026-10-30:** no points, no stats (D6) |
 
 ## 4. Iteration overview
 
