@@ -32,6 +32,13 @@ type RunOutcome = {
 
 const LANGUAGE_LABELS: Record<Language, string> = { javascript: 'JS', python: 'PY' };
 
+/** The match-finish payload the duel submit endpoint may include. */
+export type MatchOutcome = {
+  resultType: 'win' | 'draw' | 'forfeit';
+  winnerId: string | null;
+  deltas: Record<string, number>;
+};
+
 /** Player-facing words for the aggregate statuses (never raw enum names). */
 const STATUS_LABELS: Record<string, string> = {
   accepted: 'Accepted',
@@ -43,7 +50,20 @@ const STATUS_LABELS: Record<string, string> = {
   internal_error: 'Judge error — try again',
 };
 
-export function CodePanel({ challenge }: { challenge: ChallengeDetail }) {
+export function CodePanel({
+  challenge,
+  submitPath,
+  onOutcome,
+  locked = false,
+}: {
+  challenge: ChallengeDetail;
+  /** Where SUBMIT posts (duels use /api/matches/:id/submit); defaults to practice. */
+  submitPath?: string;
+  /** Called with the parsed submit/run outcome (duel finish handling). */
+  onOutcome?: (data: RunOutcome & { matchFinished?: boolean; matchOutcome?: MatchOutcome | null }) => void;
+  /** True when the duel is over — the workbench freezes. */
+  locked?: boolean;
+}) {
   const [language, setLanguage] = useState<Language>('javascript');
   // Per-language scratchpads: switching languages never loses typed code.
   const [code, setCode] = useState<Record<Language, string>>(() => ({
@@ -65,17 +85,20 @@ export function CodePanel({ challenge }: { challenge: ChallengeDetail }) {
 
   const judge = useCallback(
     async (kind: 'run' | 'submit') => {
+      if (locked) return;
       setBusy(kind);
       setError(null);
       setOutcome(null);
       try {
-        const res = await fetch(`/api/challenges/${challenge.slug}/${kind}`, {
+        const url =
+          kind === 'run' ? `/api/challenges/${challenge.slug}/run` : (submitPath ?? `/api/challenges/${challenge.slug}/submit`);
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ language, sourceCode: code[language] }),
         });
         const data = (await res.json().catch(() => null)) as
-          | (RunOutcome & { message?: string; error?: string })
+          | (RunOutcome & { message?: string; error?: string; matchFinished?: boolean; matchOutcome?: MatchOutcome | null })
           | null;
         if (res.status === 429) {
           setError(data?.message ?? 'Too many runs — wait a few minutes.');
@@ -83,6 +106,7 @@ export function CodePanel({ challenge }: { challenge: ChallengeDetail }) {
           setError('The judge refused this request. Check your code and try again.');
         } else if (data) {
           setOutcome(data);
+          onOutcome?.(data);
         }
       } catch {
         setError('Could not reach the judge. Check your connection and try again.');
@@ -90,7 +114,7 @@ export function CodePanel({ challenge }: { challenge: ChallengeDetail }) {
         setBusy(null);
       }
     },
-    [challenge.slug, language, code],
+    [challenge.slug, language, code, submitPath, onOutcome, locked],
   );
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -171,7 +195,7 @@ export function CodePanel({ challenge }: { challenge: ChallengeDetail }) {
         <button
           type="button"
           onClick={() => judge('run')}
-          disabled={busy !== null || overLimit || source.trim().length === 0}
+          disabled={locked || busy !== null || overLimit || source.trim().length === 0}
           className="border border-line-dark bg-surface px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-[0.1em] text-cream transition-colors hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy === 'run' ? 'Running…' : 'Run'}
@@ -179,7 +203,7 @@ export function CodePanel({ challenge }: { challenge: ChallengeDetail }) {
         <button
           type="button"
           onClick={() => judge('submit')}
-          disabled={busy !== null || overLimit || source.trim().length === 0}
+          disabled={locked || busy !== null || overLimit || source.trim().length === 0}
           className="bg-accent px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-[0.1em] text-carbon transition-colors hover:bg-[#ff6231] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy === 'submit' ? 'Judging…' : 'Submit'}

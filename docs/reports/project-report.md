@@ -12,9 +12,9 @@ One living report for the whole project. Update it at the end of every iteration
 | Goal | 1v1 timed coding duels, built as a real product |
 | Stack | Next.js (Vercel), Node + Fastify + Socket.IO (Render), PostgreSQL (Neon), Judge0 (later) |
 | Method | Iterations: build one, test it, report, then start the next |
-| Current iteration | Iteration 2 - Practice mode (built + tested + owner-signed-off; merging to main) |
+| Current iteration | Iteration 3 - Friend duels (built + tested; live-match/result review pending, then merge) |
 | Live URLs | Web: https://duel1v1.vercel.app · Server: https://duel1v1.onrender.com |
-| Last updated | 2026-10-28 |
+| Last updated | 2026-10-30 |
 
 ## 2. Decisions made so far
 
@@ -31,6 +31,7 @@ One living report for the whole project. Update it at the end of every iteration
 | 9 | Avatar uploads stored as base64 bytes in our own database | No third-party storage service; works on free tiers; photos are ≤256×256 and size-capped | 2026-10-28 |
 | 10 | An upload always wins over the Google photo | The player owns their picture; Google sign-in only fills an empty avatar | 2026-10-28 |
 | 11 | Judging style: **function in, answer out** | The player writes a named function and RETURNS the answer; the server wraps their code so the judge calls it with JSON arguments and compares the returned value. Replaced the original stdin/stdout plan (2026-10-29, owner decision) | 2026-10-29 |
+| 12 | Duel point rules (D5) | Win swing randomized +29…+31 (loser −same), draw both −10, forfeit stayer +10 / leaver −10, no floor, 30 s grace | 2026-10-29 |
 
 ## 3. Open decisions
 
@@ -39,7 +40,7 @@ One living report for the whole project. Update it at the end of every iteration
 | D1 | Product name | Iteration 0 | "Coding Duel" |
 | D2 | AI coding tool | Iteration 0 | none chosen |
 | D4 | Judge0 hosted or self-hosted | Iteration 2 | Hosted |
-| D5 | Points and draw rule confirmed | Iteration 3 | +1 / −1, draw no change |
+| D5 | Points and draw rule confirmed | Iteration 3 | **Confirmed 2026-10-29:** +29…31 swing, draw −10 both, forfeit +10/−10, no floor |
 | D6 | Bot matches count toward points | Iteration 4 | Decide in iteration 4 |
 
 ## 4. Iteration overview
@@ -48,8 +49,8 @@ One living report for the whole project. Update it at the end of every iteration
 |---|---|---|---|
 | 0 | Foundation | F0 setup and deploy | **Done** (2026-10-27) |
 | 1 | Accounts | F1 login, F2 profile, F2b avatar upload, F3 email login | **Done** (2026-10-28) |
-| 2 | Practice mode | F3 challenges, editor, run code | Built + tested (2026-10-29) |
-| 3 | Friend duels | F4 rooms, F5 match engine, F6 history | Not started |
+| 2 | Practice mode | F3 challenges, editor, run code | **Done** (2026-10-29) |
+| 3 | Friend duels | F4 rooms, F5 match engine, F6 history | Built + tested (2026-10-30) |
 | 4 | Soft launch | F7 bot and daily challenge, F8 launch hardening | Not started |
 | 5 | Growth | F9 matchmaking, F10 AI analysis, F11 UI polish, F12 C++ and Java | Not started |
 
@@ -223,12 +224,72 @@ yes — Iteration 3 (friend duels)
 - Practice history panel on the detail page (API exists: GET `/:slug/submissions`)
 - Redis-backed rate limiting when scaling past one server instance
 
+### Iteration 3 - Friend duels
+
+Branch: `feature/F05-duels` (F05 rooms + F06 engine + F07 history, `docs/features/F0{5,6,7}-*.md`)
+Status: passed (all server gates green; live-match + result screen review with owner pending)
+
+#### What was built
+- **Rooms (F05):** `rooms` table (+ migrations 0006-0009), `POST /api/duels/rooms` (server-generated 8-char Crockford invite code, case-insensitive, I/L/O→1/1/0 normalization), `GET /api/duels/rooms/:code` (member-only state), join (seat 2, `room_full`/`already_in_match` guards), leave, host start (REST + socket), one-time socket tokens (`GET /api/duels/socket-token`, `SOCKET_TOKEN_TTL_MS`, single use) so the browser can socket-auth cross-origin without cookies.
+- **Socket.IO gateway:** token auth on handshake, room presence (online dots), `room_state` authoritative resend on every change, `match_started` broadcast, live match channel (`match:join`, `progress` with counts only, `match_ended`). Disconnect marks the player in an active match; 30 s grace (D5) then forfeit via the sweeper.
+- **Match engine (F06):** one transaction creates the match (challenge pick + `matches` + both `match_players` with `points_before`, randomized swing locked at start, server-owned `ends_at`); duel submissions reuse the F04 judge loop with `match_id`; first accepted submit wins via a conditional `UPDATE ... WHERE status='active'` (exactly one winner under concurrency); D5 points in the same transaction (win +29…31/−same, draw −10 both, forfeit +10/−10, no floor); sweeper on boot + every 5 s (draws past deadline, forfeits past grace, expired rooms).
+- **Repeat rule:** challenge pick excludes what either player accepted in their last `REPEAT_AVOID_LAST_N` (3) matches, with widening fallbacks.
+- **History (F07):** `GET /api/matches` (own, newest first, active pinned, limit/offset) + `GET /api/matches/:id` (participant-only; challenge via visible tests, players with before/after, own latest submission for code restore; opponent code never included).
+- **UI:** `/duel` launcher (PICK A DUEL + difficulty chips + create/join), `/duel/[code]` lobby (presence dots, ready toggles, COPY invite, host START), `/match/[id]` workbench (countdown from `ends_at`, opponent progress, result overlay VICTORY./DEFEAT./DRAW./FORFEIT. with point delta), profile page MATCH HISTORY block, PLAY nav link.
+
+#### Test results
+
+| Area | Test | Result | Notes |
+|---|---|---|---|
+| API | F05/F06 matrix over real sockets + real Judge0 | 48/48 pass | `f05-api-test.ts` (rooms, guards, one-time tokens, live events, ready flow, start, duel submit, D5 swing, history, leak checks, pagination) |
+| Engine | Outcomes unreachable quickly over HTTP | 17/17 pass | `f06-engine-test.ts` (draw, forfeit, near-simultaneous pass, no-floor, repeat rule, swing bounds) |
+| Soak | Ten friend duels end to end | 52/52 pass | `f06-soak-test.ts` (10 real Judge0 duels, alternating winners; exactly one outcome each, points moved exactly once, history correct both sides, repeat rule active) |
+| Restart safety | Kill server mid-match, reboot | 6/6 pass | `f06-restart-gate.ts` (sweeper finished the orphaned match as a draw with correct D5 points on boot) |
+| Build | Server `tsc`, lint | pass | Web build pending (dev server must pause for `next build`) |
+
+#### Issues found
+| # | Issue | Severity | Fixed | Notes |
+|---|---|---|---|---|
+| 1 | Invite-code generator could emit I/L/O, but lookups normalize them away — ~56% of rooms would be unjoinable | high | yes | True Crockford alphabet (no I/L/O/U); regression check added (generated codes must survive normalization) |
+| 2 | Concurrent READY toggles could erase each other (read-modify-write on the `ready_state` jsonb) | high | yes | Atomic `jsonb` merge in SQL; caught by the soak's simultaneous ready emits |
+| 3 | Socket `room:join` did not normalize the invite code (REST path did) | medium | yes | Gateway now uses the same `normalizeInviteCode` |
+| 4 | A half-open pooled Neon connection hung a query 7+ minutes (no TCP keepalive) | medium | yes | `keep_alive` + `max_lifetime` on the pool; soak harness also fails fast on hangs now |
+| 5 | `matches.winner_id` FK (`set null`) violated the win CHECK when deleting a user who won a match | medium | yes | FK changed to `cascade` (migration 0009): deleting a winner removes the meaningless match |
+| 6 | Bodyless POSTs (join/leave/start/ready) got 415/400 from Fastify's default parsers | medium | yes | Custom parser for both `application/json` and `*`: empty/absent body → `{}` |
+| 7 | Fastify decorator added after `app.ready()` crashed boot (`FST_ERR_DEC_AFTER_START`) | high | yes | Gateway setup moved before `app.ready()` |
+
+#### Security and fairness checks
+- [x] Server is the referee — outcome, timer, and points all decided in Postgres transactions; sockets only push
+- [x] First-pass-wins is race-safe — conditional update verified under forced near-simultaneous passes
+- [x] Opponent privacy — progress events carry counts only; opponent source code and outputs never in any response (verified both directions, including finished matches)
+- [x] Socket auth — one-time, short-lived, userId-bound tokens; no-token/reused-token connections rejected
+- [x] Room privacy — room state and match detail are participant-only (403 verified); history is own-only
+- [x] No secrets in git; migrations applied to the shared Neon DB are idempotent scripts in-repo
+
+#### Works on
+- [x] Server flow verified end to end (two scripted players over real sockets + real Judge0)
+- [ ] Live-match + result screen visual review with owner (pending — planned right after merge)
+
+#### Changes to plan or architecture
+- **D5 confirmed by owner (decision 12):** win swing randomized +29…+31, draw −10 both, forfeit +10/−10, no floor (negative points persist), 30 s disconnect grace — recorded in PLAN, shared constants, and the engine
+- `matches.winner_id` FK changed to cascade (see issue 5)
+- Free Judge0 CE endpoint reused from F04; rate limit 20 judge calls / 5 min / user applies to duel submits too
+
+#### Decision: go to the next iteration?
+pending owner review of the live-match + result screens, then yes — Iteration 4 (soft launch: bot, daily challenge, hardening)
+
+#### Carried to backlog
+- Strangers matchmaking (backlog "ANYONE"), bot opponent (iteration 4 "KERN BOT"), spectator live arena
+- Rematch CTA wiring (new room, same players — button renders, action parks with matchmaking)
+- Redis-backed rate limiting and presence when scaling past one server instance
+- Best-of-three rounds (design shows it; v1 = single duel per room)
+
 ## 6. Risk register
 
 | Risk | Likelihood | Impact | Mitigation | Status |
 |---|---|---|---|---|
-| Empty queue at launch | High | High | Friend rooms, bot, daily challenge | Planned |
-| Sandbox escape or abuse | Low | Severe | Judge0, no network, limits | Planned |
+| Empty queue at launch | High | High | Friend rooms, bot, daily challenge | Friend rooms done (it. 3); bot next |
+| Sandbox escape or abuse | Low | Severe | Judge0, no network, limits | Active - verified every iteration |
 | Run and AI costs grow | Medium | Medium | Rate limits and caps | Planned |
 | Scope creep | High | Medium | Iteration gates and backlog | Active |
 | Not enough quality challenges | Medium | High | Hand-verify each with reference solution | Planned |

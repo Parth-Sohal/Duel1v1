@@ -46,6 +46,7 @@ export function Header() {
 
   const onProfile = pathname === '/profile';
   const onPractice = pathname.startsWith('/practice');
+  const onPlay = pathname.startsWith('/duel') || pathname.startsWith('/match/');
 
   const skillMapLink = (
     <Link
@@ -67,6 +68,17 @@ export function Header() {
       }`}
     >
       Practice
+    </Link>
+  );
+
+  const playLink = (
+    <Link
+      href="/duel"
+      className={`whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:text-accent ${
+        onPlay ? 'underline decoration-accent decoration-2 underline-offset-8' : ''
+      }`}
+    >
+      Play
     </Link>
   );
 
@@ -129,6 +141,7 @@ export function Header() {
             <div aria-hidden className="hidden h-4 w-px bg-line-light sm:block" />
             <nav aria-label="Primary" className="hidden items-center gap-5 sm:flex">
               {skillMapLink}
+              {playLink}
               {practiceLink}
               <span className="hidden xl:inline">{plannedNav('Rankings')}</span>
             </nav>
@@ -167,6 +180,7 @@ export function Header() {
       {menuOpen && (
         <div className="absolute inset-x-0 top-full z-30 flex flex-col gap-4 border-b border-line-light bg-cream px-5 py-5 lg:hidden">
           {skillMapLink}
+          {playLink}
           {practiceLink}
           <span className="sm:hidden">{plannedNav('Rankings')}</span>
           <div className="flex flex-col items-start gap-3 border-t border-line-light pt-4">

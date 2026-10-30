@@ -13,6 +13,11 @@ export function createDb(databaseUrl: string) {
     max: 10,
     idle_timeout: 20,
     connect_timeout: 10,
+    // Recycle half-open connections: after a network blip a pooled TCP socket
+    // can go dead silently, and a query on it would hang for hours without
+    // keepalive probes (a 7-minute hang was observed under Neon pooler blips).
+    keep_alive: 15,
+    max_lifetime: 300,
     ssl: needsSsl ? 'require' : false,
   });
 

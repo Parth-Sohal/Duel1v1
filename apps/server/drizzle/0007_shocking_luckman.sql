@@ -1,0 +1,1 @@
+ALTER TABLE "rooms" ADD COLUMN "ready_state" jsonb DEFAULT '{}'::jsonb NOT NULL;

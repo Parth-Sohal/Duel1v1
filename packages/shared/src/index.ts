@@ -7,6 +7,22 @@ export const MATCH_DURATION_MS = 10 * 60 * 1000; // 10 minutes, server-owned
 export const FORFEIT_GRACE_MS = 30 * 1000; // disconnect grace period
 export const MAX_CODE_LENGTH = 50_000; // characters per submission
 
+/**
+ * Duel point rules (decision D5, owner-confirmed 2026-10-29). No floor —
+ * points may go negative; a "no title yet" display just shows the number.
+ */
+export const WIN_SWING_MIN = 29; // each match's swing is randomized in [MIN, MAX]
+export const WIN_SWING_MAX = 31; // winner gains it, loser loses the same amount
+export const DRAW_PENALTY = 10; // both players lose this on a draw
+export const FORFEIT_REWARD = 10; // the player who stays gains this
+export const FORFEIT_PENALTY = 10; // the player who left/forfeited loses this (less than a loss)
+/** Room invites expire after this long without a match starting. */
+export const ROOM_TTL_MS = 60 * 60 * 1000;
+/** Live match socket auth tokens: one-time, short-lived (works cross-origin in production). */
+export const SOCKET_TOKEN_TTL_MS = 60 * 1000;
+/** F6 repeat rule: avoid challenges either player solved in their last N matches. */
+export const REPEAT_AVOID_LAST_N = 3;
+
 /** Base paths of the two apps, resolved through their env/config. */
 export const DEFAULT_WEB_PORT = 3000;
 export const DEFAULT_SERVER_PORT = 4000;

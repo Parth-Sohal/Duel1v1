@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026-10-30] F05/F06/F07 — Friend duels (built + tested)
+- Added: friend rooms — `POST /api/duels/rooms` (8-char Crockford invite code, I/L/O-normalized, case-insensitive), member-only room state, join with `room_full`/`already_in_match` guards, leave, host start (REST + socket); migrations 0006–0009 (`rooms` + `guest_id`/`ready_state`/`difficulty`, `matches` + `swing_points`/CHECKs, `match_players`, `submissions.match_id`, winner FK → cascade)
+- Added: Socket.IO gateway — one-time short-lived socket tokens (`GET /api/duels/socket-token`), presence dots, authoritative `room_state` resends, `match_started`/`progress`/`match_ended` broadcasts, disconnect grace marking
+- Added: match engine — one transaction creates the duel (repeat-avoiding challenge pick, randomized swing locked at start, server-owned `ends_at`); first accepted submit wins via a conditional update (exactly one winner under concurrency); D5 points in the same transaction (win +29…31/−same, draw −10 both, forfeit +10/−10, no floor); sweeper on boot + every 5 s (draws, forfeits, expired rooms) so restarts never lose a match
+- Added: history — `GET /api/matches` (own, newest first, active pinned, limit/offset) + participant-only detail (challenge via visible tests, before/after points, own latest code; opponent code never included)
+- Added: UI — `/duel` launcher (PICK A DUEL + difficulty chips), `/duel/[code]` lobby (presence dots, ready toggles, COPY invite, host START), `/match/[id]` workbench (countdown, opponent progress, VICTORY./DEFEAT./DRAW./FORFEIT. overlay with delta), profile MATCH HISTORY block, PLAY nav link
+- Fixed: invite-code generator could emit I/L/O (lookups normalize them → room unjoinable); concurrent READY toggles could erase each other (now an atomic jsonb merge); socket join now normalizes codes like REST; Neon pool gained TCP keepalive against half-open connection hangs
+- Verified: `f05-api-test.ts` 48/48, `f06-engine-test.ts` 17/17, `f06-soak-test.ts` 52/52 (ten real Judge0 duels, alternating winners), restart gate 6/6; server tsc + lint green
+
 ## [2026-10-29] F04 — Practice mode (built + tested + owner-signed-off)
 - Added: solo practice — `/practice` (challenge roster with solved markers) and `/practice/[slug]` (statement + samples on cream, workbench on dark: JS/PY language chips with per-language scratchpads, monospace editor with tab indent, RUN + SUBMIT, expandable per-test results); PRACTICE nav link added
 - Added: judging model (decision 11, revised by owner) — the player writes a named function and **returns** the answer; the server's harness calls it with JSON arguments and compares the returned value (JS `JSON.stringify` ≡ Python tight `json.dumps`, so both languages agree byte-for-byte)

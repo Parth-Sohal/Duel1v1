@@ -43,6 +43,34 @@
       "when": 1793256476455,
       "tag": "0005_wakeful_katie_power",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793264753435,
+      "tag": "0006_sour_swarm",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793264823603,
+      "tag": "0007_shocking_luckman",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793264877289,
+      "tag": "0008_tidy_forgotten_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793267722683,
+      "tag": "0009_fantastic_thundra",
+      "breakpoints": true
     }
   ]
 }

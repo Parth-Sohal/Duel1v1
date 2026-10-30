@@ -60,7 +60,8 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   check('users_display_name_length', sql`char_length(${t.displayName}) BETWEEN 2 AND 30`),
-  check('users_points_non_negative', sql`${t.points} >= 0`),
+  // D5 (owner-confirmed 2026-10-29): no floor — points may go negative. The old
+  // users_points_non_negative check was dropped in migration 0006.
 ]);
 
 /** Server-side sessions. Only the SHA-256 hash of the token is stored, never the raw token. */
@@ -151,5 +152,65 @@ export const submissions = pgTable('submissions', {
   results: jsonb('results').notNull(), // redacted per-test results
   sourceCode: text('source_code').notNull(),
   judgeLatencyMs: integer('judge_latency_ms'),
+  matchId: uuid('match_id').references(() => matches.id, { onDelete: 'set null' }), // null = practice submission
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [index('submissions_user_created_idx').on(t.userId, t.createdAt)]);
+}, (t) => [
+  index('submissions_user_created_idx').on(t.userId, t.createdAt),
+  index('submissions_match_created_idx').on(t.matchId, t.createdAt),
+]);
+
+/**
+ * Friend duel rooms (docs/features/F05-friend-rooms.md). Invite codes are
+ * 8-char Crockford base32, unique, case-insensitive (uppercased on input).
+ * Room difficulty filters the match's challenge pick (null = ANY).
+ */
+export const rooms = pgTable('rooms', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  inviteCode: text('invite_code').notNull().unique(),
+  hostId: uuid('host_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  /** Seat 2 once someone joins (null = open seat). Host is seat 1. */
+  guestId: uuid('guest_id').references(() => users.id, { onDelete: 'set null' }),
+  status: roomStatusEnum('status').notNull().default('open'),
+  difficulty: difficultyEnum('difficulty'), // null = ANY
+  /** Ready toggles keyed by userId: { "<uuid>": true }. Authoritative in Postgres so a refresh restores full state. */
+  readyState: jsonb('ready_state').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, (t) => [index('rooms_host_idx').on(t.hostId)]);
+
+/**
+ * 1v1 duels (docs/features/F06-match-engine.md). `swing_points` locks the D5
+ * randomized win swing (+29..+31) at match creation. All outcomes are decided
+ * by conditional updates (WHERE status = 'active') so near-simultaneous
+ * submissions produce exactly one winner.
+ */
+export const matches = pgTable('matches', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  roomId: uuid('room_id').references(() => rooms.id, { onDelete: 'set null' }),
+  challengeVersionId: uuid('challenge_version_id').notNull().references(() => challengeVersions.id, { onDelete: 'restrict' }),
+  status: matchStatusEnum('status').notNull().default('waiting'),
+  resultType: matchResultEnum('result_type'),
+  winnerId: uuid('winner_id').references(() => users.id, { onDelete: 'cascade' }), // deleting a winner removes the (now meaningless) match rather than nulling out of a win
+  swingPoints: integer('swing_points'),
+  isBotMatch: boolean('is_bot_match').notNull().default(false),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  endsAt: timestamp('ends_at', { withTimezone: true }),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index('matches_room_idx').on(t.roomId),
+  check('matches_finished_has_result', sql`${t.status} <> 'finished' OR ${t.resultType} IS NOT NULL`),
+  check('matches_win_has_winner', sql`${t.resultType} <> 'win' OR ${t.winnerId} IS NOT NULL`),
+]);
+
+/** The two seats of a match; points_before/after recorded for D5 deltas. */
+export const matchPlayers = pgTable('match_players', {
+  matchId: uuid('match_id').notNull().references(() => matches.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  seat: integer('seat').notNull(), // 1 or 2
+  pointsBefore: integer('points_before').notNull(),
+  pointsAfter: integer('points_after'),
+  disconnectedAt: timestamp('disconnected_at', { withTimezone: true }),
+}, (t) => [
+  check('match_players_seat_valid', sql`${t.seat} IN (1, 2)`),
+]);
