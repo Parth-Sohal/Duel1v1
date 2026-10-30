@@ -1,6 +1,6 @@
 # F09 — Daily challenge (+ growing the pool to 30–50)
 
-Status: built + gated (2026-10-30, test matrix 21/21 + pool verify 8/8)
+Status: built + gated (2026-10-30, test matrix 28/28 + pool verify 8/8)
 Branch: feature/F09-daily-challenge
 Depends on: F04 (challenges + judging)
 PLAN reference: Iteration 4, "Daily challenge; grow to 30 to 50 hand-checked challenges"
@@ -52,12 +52,22 @@ state are the F04 systems exactly. The daily page itself only adds the banner
 
 ## Test checklist
 
-Evidence: `apps/server/scripts/f09-daily-test.ts` — 21/21 against the local
+Evidence: `apps/server/scripts/f09-daily-test.ts` — 28/28 against the local
 server + shared Neon DB (2026-10-30); pool gate
 `scripts/challenge-verify.ts` — 8/8 published versions verified through the
 real Judge0. Note: the seed loader (`f04-seed-challenges.ts`) now SKIPS slugs
 already in the DB — published challenges carry real player submissions and
 re-running the old delete-and-reinsert would have cascaded them away.
+
+## Streak bar (owner request, 2026-10-30)
+
+The `/daily` page's bottom shows the last 14 days as one cell per day:
+ORANGE = the daily was solved that day (accepted submit for that day's
+challenge), outlined = missed, dashed = no daily existed (pre-launch). Under
+the bar: current streak and longest streak. A day counts only via an ACCEPTED
+submit; today still open never breaks the run; the max scans every daily day
+since launch. Streak data is personal — the payload carries `streaks: null`
+signed-out and the page shows a sign-in note instead.
 
 - [x] Two different accounts get the SAME challenge for the same UTC day
 - [x] The daily changes each day; no repeats while the pool has fresh entries

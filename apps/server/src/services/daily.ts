@@ -120,6 +120,87 @@ async function playerState(db: Database, userId: string, challengeId: string): P
   return { attempts: row?.attempts ?? 0, solved: row?.solved ?? false };
 }
 
+/** Streak bar states: solved that day, daily existed but unsolved, or no daily at all (pre-launch). */
+export type StreakDayState = 'done' | 'missed' | 'none';
+
+export type StreakDay = { day: string; state: StreakDayState };
+
+export type StreakSummary = { current: number; max: number; days: StreakDay[] };
+
+/** How many days the bar shows. */
+const STREAK_WINDOW = 14;
+
+/**
+ * The player's daily-streak data (owner request, 2026-10-30): a 14-day bar
+ * plus current/longest streak. A day counts as DONE when the player has an
+ * ACCEPTED submit for the challenge that was the daily that day. The streak
+ * survives a not-yet-solved today but breaks on a missed past day. Max scans
+ * every daily day since launch (not just the visible window). Null for
+ * signed-out visitors — streaks are personal.
+ */
+export async function dailyStreaks(db: Database, userId: string | null): Promise<StreakSummary | null> {
+  if (!userId) return null;
+  const today = utcDayOf();
+
+  const dailyDays = await db
+    .select({ day: dailyChallenges.day, challengeId: challenges.id })
+    .from(dailyChallenges)
+    .innerJoin(challengeVersions, eq(challengeVersions.id, dailyChallenges.challengeVersionId))
+    .innerJoin(challenges, eq(challenges.id, challengeVersions.challengeId))
+    .where(sql`${dailyChallenges.day} <= ${today}`)
+    .orderBy(asc(dailyChallenges.day));
+
+  const accepted = new Set(
+    (
+      await db
+        .selectDistinct({ challengeId: submissions.challengeId })
+        .from(submissions)
+        .where(and(eq(submissions.userId, userId), eq(submissions.kind, 'submit'), eq(submissions.status, 'accepted')))
+    ).map((r) => r.challengeId),
+  );
+
+  const doneByDay = new Map<string, boolean>();
+  for (const row of dailyDays) doneByDay.set(row.day, accepted.has(row.challengeId));
+
+  const days: StreakDay[] = [];
+  for (let i = STREAK_WINDOW - 1; i >= 0; i--) {
+    const day = dayBefore(today, i);
+    if (!day) continue;
+    const has = doneByDay.has(day);
+    days.push({ day, state: !has ? 'none' : doneByDay.get(day) ? 'done' : 'missed' });
+  }
+
+  // Current streak: consecutive done days ending today — a not-yet-solved
+  // TODAY does not break it (the day is still open), a missed past day does.
+  let current = 0;
+  for (let i = 0; ; i++) {
+    const d = dayBefore(today, i);
+    if (!d) break;
+    if (doneByDay.get(d) === true) {
+      current++;
+      continue;
+    }
+    if (i === 0) continue; // today is open — keep counting from yesterday
+    break;
+  }
+
+  // Longest streak over ALL daily days: consecutive calendar days marked done.
+  let max = 0;
+  let run = 0;
+  let prev: string | null = null;
+  for (const [day] of doneByDay) {
+    if (doneByDay.get(day) === true) {
+      run = prev !== null && dayBefore(prev, -1) === day ? run + 1 : 1;
+      if (run > max) max = run;
+    } else {
+      run = 0;
+    }
+    prev = day;
+  }
+
+  return { current, max, days };
+}
+
 /**
  * Full payload for GET /api/daily: today's challenge (VISIBLE tests only —
  * the same redaction as practice detail), the caller's state when signed in,
@@ -143,10 +224,11 @@ export async function dailyPayload(
     visibleTests: Array<{ args: unknown[]; expected: string }>;
   };
   you: { attempts: number; solved: boolean } | null;
+  streaks: StreakSummary | null;
 }> {
   const day = utcDayOf();
   const resolved = await resolveDaily(db, day);
-  if (!resolved) return { day, challenge: null, you: null };
+  if (!resolved) return { day, challenge: null, you: null, streaks: await dailyStreaks(db, userId) };
 
   const [row] = await db
     .select({ challenge: challenges, version: challengeVersions })
@@ -154,7 +236,7 @@ export async function dailyPayload(
     .innerJoin(challenges, eq(challenges.id, challengeVersions.challengeId))
     .where(eq(challengeVersions.id, resolved.versionId))
     .limit(1);
-  if (!row) return { day, challenge: null, you: null };
+  if (!row) return { day, challenge: null, you: null, streaks: await dailyStreaks(db, userId) };
 
   const tests = (row.version.tests as Array<{ args: unknown[]; expected: string; hidden: boolean }>).filter(
     (t) => Array.isArray(t.args) && typeof t.expected === 'string' && !t.hidden,
@@ -178,5 +260,6 @@ export async function dailyPayload(
       visibleTests: tests.map((t) => ({ args: t.args, expected: t.expected })),
     },
     you: userId ? await playerState(db, userId, row.challenge.id) : null,
+    streaks: await dailyStreaks(db, userId),
   };
 }

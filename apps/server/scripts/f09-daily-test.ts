@@ -10,7 +10,7 @@
 import 'dotenv/config';
 import { and, asc, eq, gte } from 'drizzle-orm';
 import { createDb } from '../src/db/index.js';
-import { challengeVersions, challenges, dailyChallenges, users } from '../src/db/schema.js';
+import { challengeVersions, challenges, dailyChallenges, submissions, users } from '../src/db/schema.js';
 import { resolveDaily, utcDayOf, dayBefore } from '../src/services/daily.js';
 
 const BASE = 'http://localhost:4000';
@@ -196,6 +196,44 @@ async function main(): Promise<void> {
   check('daily state round-trips: solved = true, attempts counted', afterA.json?.you?.solved === true && afterA.json?.you?.attempts >= 1, JSON.stringify(afterA.json?.you));
   const afterB = await call('/api/daily', 'GET', undefined, B.cookie);
   check("B is unaffected by A's solve (per-player state)", afterB.json?.you?.solved === false);
+
+  // ---- Case 5: streak bar (owner request) ----
+  check('streak summary present for the solver', typeof afterA.json?.streaks?.current === 'number' && typeof afterA.json?.streaks?.max === 'number', JSON.stringify(afterA.json?.streaks && { c: afterA.json.streaks.current, m: afterA.json.streaks.max }));
+  check("today's cell is DONE (orange) for the solver", afterA.json?.streaks?.days?.[afterA.json.streaks.days.length - 1]?.state === 'done');
+  check('streaks are null signed-out (personal data)', signedOut.json?.streaks === null, JSON.stringify(signedOut.json?.streaks));
+
+  // Simulate a 3-day run: accepted submits on the two previous days too.
+  const yday = dayBefore(today, 1);
+  const d2 = dayBefore(today, 2);
+  const p2 = await pool();
+  const [yEntry, d2Entry] = [p2.find((c) => c.slug !== cachedSlug)!, p2.find((c) => c.slug !== cachedSlug && c.slug !== p2.find((x) => x.slug !== cachedSlug)!.slug)!];
+  for (const [day, entry] of [[yday, yEntry], [d2, d2Entry]] as const) {
+    await db.insert(dailyChallenges).values({ day, challengeVersionId: entry.versionId }).onConflictDoNothing();
+    await db.insert(submissions).values({
+      userId: A.id!,
+      challengeId: (await db.select({ id: challenges.id }).from(challenges).where(eq(challenges.slug, entry.slug)).limit(1))[0].id,
+      challengeVersionId: entry.versionId,
+      kind: 'submit',
+      language: 'javascript',
+      status: 'accepted',
+      passed: 5,
+      total: 5,
+      results: [],
+      sourceCode: '/* simulated accepted submit for streak test */',
+    });
+  }
+  const streak3 = await call('/api/daily', 'GET', undefined, A.cookie);
+  check('current streak = 3 after three consecutive solved days', streak3.json?.streaks?.current === 3, JSON.stringify({ c: streak3.json?.streaks?.current, m: streak3.json?.streaks?.max }));
+  check('max streak = 3', streak3.json?.streaks?.max === 3, String(streak3.json?.streaks?.max));
+  check('yesterday + day-2 cells are DONE', streak3.json?.streaks?.days?.[12]?.state === 'done' && streak3.json?.streaks?.days?.[11]?.state === 'done', JSON.stringify(streak3.json?.streaks?.days));
+  const afterB2 = await call('/api/daily', 'GET', undefined, B.cookie);
+  check('B streak = 0 with no done days', afterB2.json?.streaks?.current === 0 && afterB2.json?.streaks?.max === 0, JSON.stringify({ c: afterB2.json?.streaks?.current, m: afterB2.json?.streaks?.max }));
+
+  // cleanup the simulated history before the signed-out page check
+  for (const day of [yday, d2]) {
+    await db.delete(dailyChallenges).where(eq(dailyChallenges.day, day));
+  }
+  // A's simulated submissions cascade away with A's account in cleanup below.
 
   // ---- Case 5: the web /daily page is viewable signed-out ----
   let pageOk = false;

@@ -9,10 +9,13 @@ import type { ChallengeDetail, VisibleTest } from './practice';
  * forwarded only when present, and the API never 401s this route.
  */
 
+export type StreakDay = { day: string; state: 'done' | 'missed' | 'none' };
+
 export type DailyPayload = {
   day: string;
   challenge: null | (Omit<ChallengeDetail, 'memoryLimitMb' | 'version'> & { visibleTests: VisibleTest[] });
   you: { attempts: number; solved: boolean } | null;
+  streaks: { current: number; max: number; days: StreakDay[] } | null;
 };
 
 /** Today's challenge for everyone; null data = server unreachable. */
