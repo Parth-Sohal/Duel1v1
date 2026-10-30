@@ -91,6 +91,9 @@ async function registerOrLogin(n: number): Promise<Player> {
   });
   check(`register P${n} 200 (production)`, reg.status === 200, `${reg.status} ${JSON.stringify(reg.json)}`);
   if (reg.status !== 200) throw new Error('register failed — cannot continue');
+  // Seed a balance (same Neon DB) so the duel exercises the FULL mirrored
+  // swing; the floor path — a broke loser pays 0 — is covered by the engine test.
+  await db.update(users).set({ points: 100 }).where(eq(users.email, email));
   const me = await call('/api/auth/me', 'GET', undefined, reg.cookie);
   return { name: `P${n}`, email, cookie: reg.cookie, id: me.json?.user?.id, points: me.json?.user?.points ?? 0 };
 }

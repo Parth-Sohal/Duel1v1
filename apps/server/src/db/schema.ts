@@ -60,8 +60,10 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   check('users_display_name_length', sql`char_length(${t.displayName}) BETWEEN 2 AND 30`),
-  // D5 (owner-confirmed 2026-10-29): no floor — points may go negative. The old
-  // users_points_non_negative check was dropped in migration 0006.
+  // Floor rule (owner decision 2026-10-30, revising D5's original "no floor"):
+  // points never go below 0. finishMatch clamps deltas; this CHECK is the
+  // hard guarantee. (The constraint was dropped in 0006, re-added in 0010.)
+  check('users_points_non_negative', sql`${t.points} >= 0`),
 ]);
 
 /** Server-side sessions. Only the SHA-256 hash of the token is stored, never the raw token. */

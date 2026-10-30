@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD CONSTRAINT "users_points_non_negative" CHECK ("users"."points" >= 0);

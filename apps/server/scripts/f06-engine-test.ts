@@ -2,7 +2,8 @@
  * F06 engine test (docs/features/F06-match-engine.md): the outcomes the API
  * matrix cannot reach quickly — draw by deadline, forfeit by disconnect grace,
  * near-simultaneous-pass concurrency (conditional update), the F6 repeat rule,
- * and D5's no-floor (points go negative). Runs against the real DB with
+ * and the floor rule (a poor loser pays only what they have; nobody goes
+ * negative). Runs against the real DB with
  * throwaway users; cleans up after itself.
  * Run with: npx tsx scripts/f06-engine-test.ts
  */
@@ -80,8 +81,8 @@ async function main(): Promise<void> {
   check('randomSwing actually varies', new Set(swings).size >= 2);
 
   // ---- draw by deadline ----
-  const dA = await makeUser(1);
-  const dB = await makeUser(2);
+  const dA = await makeUser(1, 50);
+  const dB = await makeUser(2, 50);
   const drawMatch = await forceMatch(dA.id, dB.id, { endsAt: new Date(Date.now() - 1000) });
   const swept = await sweepMatches(db);
   check('sweeper finished the overdue match', swept.some((s) => s.match.id === drawMatch && s.outcome.kind === 'draw'));
@@ -104,8 +105,8 @@ async function main(): Promise<void> {
   check('forfeit: stayer +10, leaver −10 (D5)', meFA.points === 60 && meFB.points === 40, `${meFA.points}/${meFB.points}`);
 
   // ---- near-simultaneous pass: exactly one winner ----
-  const cA = await makeUser(5);
-  const cB = await makeUser(6);
+  const cA = await makeUser(5, 100);
+  const cB = await makeUser(6, 100);
   const cMatch = await forceMatch(cA.id, cB.id);
   const [cRow] = await db.select({ swing: matches.swingPoints }).from(matches).where(eq(matches.id, cMatch));
   const winAOutcome: Outcome = { kind: 'win', winnerId: cA.id, loserId: cB.id };
@@ -121,14 +122,22 @@ async function main(): Promise<void> {
   check('concurrent finish applied the swing exactly once', meCA.points === expectedCA, `${meCA.points} vs ${expectedCA}`);
   check('loser mirrored the same swing', (applied[0]!.outcome.winnerId === cA.id ? meCB.points : meCA.points) === (applied[0]!.outcome.winnerId === cA.id ? cB.points - swing : cB.points + swing));
 
-  // ---- D5 no-floor: points go negative and persist ----
+  // ---- Floor rule (owner decision 2026-10-30, revises D5's no-floor): a poor
+  // loser pays only what they have; the winner still takes the FULL swing. ----
   const nA = await makeUser(7, 5);
   const nB = await makeUser(8);
   const nMatch = await forceMatch(nA.id, nB.id);
   const nApplied = await finishMatch(db, nMatch, { kind: 'win', winnerId: nB.id, loserId: nA.id });
   check('finish applied against a near-zero balance', !!nApplied);
   const [meNA] = await db.select({ points: users.points }).from(users).where(eq(users.id, nA.id));
-  check('no floor: loser points went NEGATIVE and persisted', meNA.points < 0, String(meNA.points));
+  const [meNB] = await db.select({ points: users.points }).from(users).where(eq(users.id, nB.id));
+  const [nRow] = await db.select({ swing: matches.swingPoints }).from(matches).where(eq(matches.id, nMatch));
+  const nSwing = nRow.swing ?? WIN_SWING_MIN;
+  check('floor: broke loser pays only what they have (lands on 0)', meNA.points === 0, String(meNA.points));
+  check('floor: winner still takes the FULL swing', meNB.points === nSwing, `${meNB.points} vs ${nSwing}`);
+  check('floor: applied deltas reflect the clamped loss', nApplied!.deltas[nA.id] === -5 && nApplied!.deltas[nB.id] === nSwing, JSON.stringify(nApplied?.deltas));
+  const [paN] = await db.select().from(matchPlayers).where(sql`${matchPlayers.matchId} = ${nMatch} and ${matchPlayers.userId} = ${nA.id}`);
+  check('floor: points_after recorded as 0, never negative', paN.pointsAfter === 0, String(paN.pointsAfter));
 
   // ---- F6 repeat rule ----
   const solvedSlug = 'pair-target-sum';

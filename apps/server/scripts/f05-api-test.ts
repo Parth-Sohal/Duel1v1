@@ -82,6 +82,9 @@ async function registerPlayer(n: number): Promise<Player> {
     displayName: `Dueler ${n}`,
   });
   if (res.status !== 200) throw new Error(`register ${n} failed: ${res.status} ${JSON.stringify(res.json)}`);
+  // Seed a balance so the duel exercises the FULL mirrored swing (the floor
+  // path — a broke loser pays 0 — is covered by the engine test + soak).
+  await db.update(users).set({ points: 100 }).where(eq(users.email, email));
   const me = await call('/api/auth/me', 'GET', undefined, res.cookie!);
   return { name: `P${n}`, cookie: res.cookie!, id: me.json?.user?.id, points: me.json?.user?.points ?? 0 };
 }

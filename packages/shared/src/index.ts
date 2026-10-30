@@ -8,8 +8,10 @@ export const FORFEIT_GRACE_MS = 30 * 1000; // disconnect grace period
 export const MAX_CODE_LENGTH = 50_000; // characters per submission
 
 /**
- * Duel point rules (decision D5, owner-confirmed 2026-10-29). No floor —
- * points may go negative; a "no title yet" display just shows the number.
+ * Duel point rules (decision D5, owner-confirmed 2026-10-29; floor revised by
+ * the owner 2026-10-30): win swing randomized +29..+31 (loser pays the same,
+ * floored at 0 — nobody goes negative), draw both -10, forfeit stayer +10 /
+ * leaver -10; a "no title yet" display just shows the number.
  */
 export const WIN_SWING_MIN = 29; // each match's swing is randomized in [MIN, MAX]
 export const WIN_SWING_MAX = 31; // winner gains it, loser loses the same amount

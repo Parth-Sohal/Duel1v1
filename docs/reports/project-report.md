@@ -31,7 +31,7 @@ One living report for the whole project. Update it at the end of every iteration
 | 9 | Avatar uploads stored as base64 bytes in our own database | No third-party storage service; works on free tiers; photos are ≤256×256 and size-capped | 2026-10-28 |
 | 10 | An upload always wins over the Google photo | The player owns their picture; Google sign-in only fills an empty avatar | 2026-10-28 |
 | 11 | Judging style: **function in, answer out** | The player writes a named function and RETURNS the answer; the server wraps their code so the judge calls it with JSON arguments and compares the returned value. Replaced the original stdin/stdout plan (2026-10-29, owner decision) | 2026-10-29 |
-| 12 | Duel point rules (D5) | Win swing randomized +29…+31 (loser −same), draw both −10, forfeit stayer +10 / leaver −10, no floor, 30 s grace | 2026-10-29 |
+| 12 | Duel point rules (D5) | Win swing randomized +29…+31 (loser pays the same, floored at 0), draw both −10 (floored), forfeit stayer +10 / leaver −10 (floored), 30 s grace; floor added 2026-10-30 | 2026-10-29 |
 
 ## 3. Open decisions
 
@@ -40,7 +40,7 @@ One living report for the whole project. Update it at the end of every iteration
 | D1 | Product name | Iteration 0 | "Coding Duel" |
 | D2 | AI coding tool | Iteration 0 | none chosen |
 | D4 | Judge0 hosted or self-hosted | Iteration 2 | Hosted |
-| D5 | Points and draw rule confirmed | Iteration 3 | **Confirmed 2026-10-29:** +29…31 swing, draw −10 both, forfeit +10/−10, no floor |
+| D5 | Points and draw rule confirmed | Iteration 3 | **Confirmed 2026-10-29, floor revised 2026-10-30:** +29…31 swing (winner full, loser floored at 0), draw −10 both (floored), forfeit +10/−10 (floored) |
 | D6 | Bot matches count toward points | Iteration 4 | Decide in iteration 4 |
 
 ## 4. Iteration overview
@@ -232,7 +232,7 @@ Status: passed (all server gates green; live-match + result screen review with o
 #### What was built
 - **Rooms (F05):** `rooms` table (+ migrations 0006-0009), `POST /api/duels/rooms` (server-generated 8-char Crockford invite code, case-insensitive, I/L/O→1/1/0 normalization), `GET /api/duels/rooms/:code` (member-only state), join (seat 2, `room_full`/`already_in_match` guards), leave, host start (REST + socket), one-time socket tokens (`GET /api/duels/socket-token`, `SOCKET_TOKEN_TTL_MS`, single use) so the browser can socket-auth cross-origin without cookies.
 - **Socket.IO gateway:** token auth on handshake, room presence (online dots), `room_state` authoritative resend on every change, `match_started` broadcast, live match channel (`match:join`, `progress` with counts only, `match_ended`). Disconnect marks the player in an active match; 30 s grace (D5) then forfeit via the sweeper.
-- **Match engine (F06):** one transaction creates the match (challenge pick + `matches` + both `match_players` with `points_before`, randomized swing locked at start, server-owned `ends_at`); duel submissions reuse the F04 judge loop with `match_id`; first accepted submit wins via a conditional `UPDATE ... WHERE status='active'` (exactly one winner under concurrency); D5 points in the same transaction (win +29…31/−same, draw −10 both, forfeit +10/−10, no floor); sweeper on boot + every 5 s (draws past deadline, forfeits past grace, expired rooms).
+- **Match engine (F06):** one transaction creates the match (challenge pick + `matches` + both `match_players` with `points_before`, randomized swing locked at start, server-owned `ends_at`); duel submissions reuse the F04 judge loop with `match_id`; first accepted submit wins via a conditional `UPDATE ... WHERE status='active'` (exactly one winner under concurrency); D5 points in the same transaction (win +29…31 with the loser paying the same **floored at 0** per the owner's 2026-10-30 revision, draw −10 both, forfeit +10/−10); sweeper on boot + every 5 s (draws past deadline, forfeits past grace, expired rooms).
 - **Repeat rule:** challenge pick excludes what either player accepted in their last `REPEAT_AVOID_LAST_N` (3) matches, with widening fallbacks.
 - **History (F07):** `GET /api/matches` (own, newest first, active pinned, limit/offset) + `GET /api/matches/:id` (participant-only; challenge via visible tests, players with before/after, own latest submission for code restore; opponent code never included).
 - **UI:** `/duel` launcher (PICK A DUEL + difficulty chips + create/join), `/duel/[code]` lobby (presence dots, ready toggles, COPY invite, host START), `/match/[id]` workbench (countdown from `ends_at`, opponent progress, result overlay VICTORY./DEFEAT./DRAW./FORFEIT. with point delta), profile page MATCH HISTORY block, PLAY nav link.
@@ -242,7 +242,7 @@ Status: passed (all server gates green; live-match + result screen review with o
 | Area | Test | Result | Notes |
 |---|---|---|---|
 | API | F05/F06 matrix over real sockets + real Judge0 | 48/48 pass | `f05-api-test.ts` (rooms, guards, one-time tokens, live events, ready flow, start, duel submit, D5 swing, history, leak checks, pagination) |
-| Engine | Outcomes unreachable quickly over HTTP | 17/17 pass | `f06-engine-test.ts` (draw, forfeit, near-simultaneous pass, no-floor, repeat rule, swing bounds) |
+| Engine | Outcomes unreachable quickly over HTTP | 17/17 pass | `f06-engine-test.ts` (draw, forfeit, near-simultaneous pass, floor rule, repeat rule, swing bounds) |
 | Soak | Ten friend duels end to end | 52/52 pass | `f06-soak-test.ts` (10 real Judge0 duels, alternating winners; exactly one outcome each, points moved exactly once, history correct both sides, repeat rule active) |
 | Restart safety | Kill server mid-match, reboot | 6/6 pass | `f06-restart-gate.ts` (sweeper finished the orphaned match as a draw with correct D5 points on boot) |
 | Build | Server `tsc`, lint | pass | Web build pending (dev server must pause for `next build`) |
@@ -271,7 +271,7 @@ Status: passed (all server gates green; live-match + result screen review with o
 - [ ] Live-match + result screen visual review with owner (pending — planned right after merge)
 
 #### Changes to plan or architecture
-- **D5 confirmed by owner (decision 12):** win swing randomized +29…+31, draw −10 both, forfeit +10/−10, no floor (negative points persist), 30 s disconnect grace — recorded in PLAN, shared constants, and the engine
+- **D5 confirmed by owner (decision 12):** win swing randomized +29…+31, draw −10 both, forfeit +10/−10, 30 s disconnect grace — recorded in PLAN, shared constants, and the engine. **Revised by the owner on 2026-10-30 (review feedback): points are floored at 0** — a poor loser pays only what they have, the winner always takes the full swing, new accounts still start at 0; enforced in `finishMatch` + a DB `CHECK (points >= 0)` (migration 0010)
 - `matches.winner_id` FK changed to cascade (see issue 5)
 - Free Judge0 CE endpoint reused from F04; rate limit 20 judge calls / 5 min / user applies to duel submits too
 

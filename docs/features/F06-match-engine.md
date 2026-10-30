@@ -20,7 +20,7 @@ A fair, server-owned 1v1: same challenge, same deadline, first correct submissio
 1. **Create** (host Start): one transaction — pick the challenge (F06 selection below), insert `matches` (status `active`, swing randomized, `ends_at` = now + MATCH_DURATION_MS), insert both `match_players` with `points_before`, set room `in_match`.
 2. **Duel submissions** reuse the F04 judge loop (function harness, both languages) with two differences: `match_id` set, kind `submit`; per-test results are NOT sent to the opponent — the opponent sees only live progress (tests passed / attempts), never code or outputs.
 3. **First accepted wins.** On an accepted submit: `UPDATE matches SET ... WHERE id = ? AND status = 'active'` — the conditional update guarantees exactly one winner on near-simultaneous passes; the losing submit just records its result and the match end is broadcast.
-4. **Points (D5)** in the same transaction as the finish: win → winner `+swing`, loser `−swing`; draw → both `−DRAW_PENALTY`; forfeit → stayer `+FORFEIT_REWARD`, leaver `−FORFEIT_PENALTY`. No floor (points may go negative). `points_after` recorded per player.
+4. **Points (D5, floor revised 2026-10-30)** in the same transaction as the finish: win → winner `+swing`, loser `−min(swing, their points)` — nobody drops below 0, the winner always takes the full swing; draw → both `−DRAW_PENALTY` (floored); forfeit → stayer `+FORFEIT_REWARD`, leaver `−FORFEIT_PENALTY` (floored). `points_after` recorded per player. A DB `CHECK (points >= 0)` (migration 0010) backs the rule.
 5. **Forfeit:** a player with no live socket for FORFEIT_GRACE_MS during an active match forfeits (sweeper checks `disconnected_at`); explicit leave also forfeits. Both-disconnect → the first to return resumes; if the deadline passes first, draw rules apply.
 6. **Draw:** the sweeper finishes matches whose `ends_at` passed with no winner (draw, both −10).
 7. **Restart safety:** all state is in Postgres; the sweeper runs on boot + every few seconds, so a server restart cannot lose or orphan a match. Sockets are just broadcast channels.
@@ -63,7 +63,7 @@ Errors: 403 not a participant, 404 unknown, 409 match not active (e.g. submittin
 - [x] Closing a tab past the 30 s grace forfeits (stayer +10, leaver −10) *(f06 engine test)*
 - [x] Refresh mid-match restores challenge, code, and time left *(match detail: challenge + `ends_at` + own latest submission; verified at API layer)*
 - [x] Server restart mid-match does not lose the match (sweeper resumes/finishes) *(restart gate: kill + reboot mid-match → draw finished with correct points, 6/6)*
-- [x] Points never below zero — n/a by design: D5 says no floor; verify negative points render and persist *(f06 engine test: loser went negative and persisted)*
+- [x] Points never below zero — **floor restored by the owner (2026-10-30)**: a poor loser pays only what they have (lands on 0), winner takes the full swing; DB CHECK enforces it *(f06 engine test: a 5-point loser lands on 0 while the winner takes the full swing; applied deltas reflect the clamped loss)*
 - [x] Duel submissions never leak code or outputs to the opponent *(progress event carries counts only; detail leak checks both directions)*
 
 *(Verified 2026-10-30: `f05-api-test.ts` 48/48, `f06-engine-test.ts` 17/17, `f06-soak-test.ts` 52/52, restart gate 6/6.)*

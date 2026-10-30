@@ -229,7 +229,7 @@ RETURNING id;
 COMMIT;
 ```
 
-**Points never go negative.** `CHECK (points >= 0)` backs up the app rule (`GREATEST(points - 1, 0)` for the loser).
+**Points never go negative.** `CHECK (points >= 0)` (re-added in migration 0010) backs the app rule: the loser/draw/forfeit delta is clamped to what the player actually has (`−min(penalty, points_before)`), while the winner always takes the full swing.
 
 **Tie-break by arrival time.** Rank competing passes by `submissions.received_at`, not by when the code runner finished.
 

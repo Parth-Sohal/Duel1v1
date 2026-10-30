@@ -81,20 +81,11 @@ async function main(): Promise<void> {
       await closeExpiredRooms(db);
       const finished = await sweepMatches(db);
       for (const applied of finished) {
-        // D5 deltas recomputed for the broadcast payload (same math as finishMatch).
-        const deltas =
-          applied.outcome.kind === 'draw'
-            ? {}
-            : {
-                [applied.outcome.winnerId]:
-                  applied.outcome.kind === 'forfeit' ? FORFEIT_REWARD : (applied.match.swingPoints ?? WIN_SWING_MIN),
-                [applied.outcome.loserId]:
-                  applied.outcome.kind === 'forfeit' ? -FORFEIT_PENALTY : -(applied.match.swingPoints ?? WIN_SWING_MIN),
-              };
+        // Deltas exactly as applied by finishMatch (floor rule included).
         await app.gateway.broadcastMatchEnded(applied.match.id, {
           resultType: applied.outcome.kind,
           winnerId: applied.outcome.kind === 'draw' ? null : applied.outcome.winnerId,
-          deltas,
+          deltas: applied.deltas,
         });
       }
     } catch (err) {

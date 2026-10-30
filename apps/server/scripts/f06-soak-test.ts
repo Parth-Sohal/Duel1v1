@@ -223,11 +223,13 @@ async function main(): Promise<void> {
     const deltas = right.json?.matchOutcome?.deltas ?? {};
     const wDelta = deltas[winner.id!];
     const lDelta = deltas[loser.id!];
+    const expectedLoss = -Math.min(wDelta ?? 0, Math.max(loser.points ?? 0, 0));
     check(
-      `${label} winner +29..31, loser mirrored`,
-      typeof wDelta === 'number' && wDelta >= 29 && wDelta <= 31 && lDelta === -wDelta,
-      JSON.stringify({ wDelta, lDelta }),
+      `${label} winner +29..31, loser pays what they have (floor 0)`,
+      typeof wDelta === 'number' && wDelta >= 29 && wDelta <= 31 && lDelta === expectedLoss,
+      JSON.stringify({ wDelta, lDelta, loserPoints: loser.points }),
     );
+    check(`${label} loser never negative`, (loser.points ?? 0) + (lDelta ?? 0) >= 0, JSON.stringify({ loserPoints: loser.points, lDelta }));
 
     // points persisted exactly once (no double-apply)
     const meW = await call('/api/auth/me', 'GET', undefined, winner.cookie);

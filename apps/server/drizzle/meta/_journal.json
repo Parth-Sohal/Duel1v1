@@ -71,6 +71,13 @@
       "when": 1793267722683,
       "tag": "0009_fantastic_thundra",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793339320483,
+      "tag": "0010_quick_stepford_cuckoos",
+      "breakpoints": true
     }
   ]
 }

@@ -17,7 +17,8 @@ import { activeMatchFor, bothReady, type RoomRow } from './rooms.js';
  * Match engine (docs/features/F06-match-engine.md). The server owns the
  * outcome: first accepted submission wins via a conditional update
  * (WHERE status = 'active'), so near-simultaneous passes produce exactly
- * one winner. Points move per decision D5 — no floor (points may go negative).
+ * one winner. Points move per decision D5 (owner-revised 2026-10-30): winners
+ * take the full swing; losers/draws/forfeits are floored at 0 points.
  */
 
 export type MatchRow = typeof matches.$inferSelect;
@@ -185,17 +186,24 @@ export async function finishMatch(
     const match = finished[0];
 
     const players = await tx.select().from(matchPlayers).where(eq(matchPlayers.matchId, matchId));
-    const deltaOf = (userId: string): number => {
+    const rawDeltaOf = (userId: string): number => {
       if (outcome.kind === 'draw') return -DRAW_PENALTY;
       return outcome.winnerId === userId ? (outcome.kind === 'forfeit' ? FORFEIT_REWARD : match.swingPoints ?? WIN_SWING_MIN) : (outcome.kind === 'forfeit' ? -FORFEIT_PENALTY : -(match.swingPoints ?? WIN_SWING_MIN));
     };
 
+    // Floor rule (owner decision, 2026-10-30 — revises D5's "no floor"): a
+    // player never drops below 0 points. Losers/draws/forfeits pay only what
+    // they have; winners always take the full swing/reward. A player is in at
+    // most one active match, so points_before is their live balance here.
+    const deltas: Record<string, number> = {};
     for (const p of players) {
-      const delta = deltaOf(p.userId);
+      const raw = rawDeltaOf(p.userId);
+      const effective = raw < 0 ? -Math.min(-raw, Math.max(p.pointsBefore, 0)) : raw;
+      deltas[p.userId] = effective;
       await tx
         .update(users)
         .set({
-          points: sql`${users.points} + ${delta}`,
+          points: sql`${users.points} + ${effective}`,
           wins: outcome.kind !== 'draw' && outcome.winnerId === p.userId ? sql`${users.wins} + 1` : sql`${users.wins}`,
           losses: outcome.kind !== 'draw' && outcome.winnerId !== p.userId ? sql`${users.losses} + 1` : sql`${users.losses}`,
           draws: outcome.kind === 'draw' ? sql`${users.draws} + 1` : sql`${users.draws}`,
@@ -204,15 +212,20 @@ export async function finishMatch(
         .where(eq(users.id, p.userId));
       await tx
         .update(matchPlayers)
-        .set({ pointsAfter: p.pointsBefore + delta })
+        .set({ pointsAfter: p.pointsBefore + effective })
         .where(and(eq(matchPlayers.matchId, matchId), eq(matchPlayers.userId, p.userId)));
     }
 
-    return { outcome, match };
+    return { outcome, match, deltas };
   });
 }
 
-export type AppliedOutcome = { outcome: Outcome; match: { id: string; swingPoints: number | null; roomId: string | null } };
+export type AppliedOutcome = {
+  outcome: Outcome;
+  match: { id: string; swingPoints: number | null; roomId: string | null };
+  /** The deltas actually applied (floored at 0 for poor players). */
+  deltas: Record<string, number>;
+};
 
 /** Full match row + players for routes. */
 export async function getMatchWithPlayers(db: Database, matchId: string): Promise<{

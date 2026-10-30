@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-10-30] Review feedback: result overlays + points floor
+- Fixed: the losing player could miss the DEFEAT overlay — it depended on a single socket event + a single fetch with no retry. MatchWorkbench now polls REST (authoritative) every 4 s while the duel is live and undecided, survives transient fetch failures, and computes the point delta from the match row when the deltas payload is absent. RoomLobby now navigates to the match from `room_state` (in_match + matchId), not only the `match_started` event, and polls while both players are seated
+- Changed: **points are floored at 0** (owner decision, revises D5's "no floor") — a poor loser pays only what they have and lands on 0; the winner always takes the full +29…31 swing; draw/forfeit penalties floored the same way. `finishMatch` now returns the applied per-player deltas, which the submit response and all socket broadcasts use verbatim. DB guarantee re-added: `users.points >= 0` CHECK (migration 0010); the owner's account (−30 from review play) clamped to 0 retroactively
+- Verified: engine test updated (floor rule: 5-point loser → 0, winner takes full swing, applied deltas clamped); soak asserts "loser pays what they have, never negative" per round; f05 matrix + prod smoke seed both players with 100 points so the full mirrored swing stays exercised
+
 ## [2026-10-30] F05/F06/F07 — Friend duels (built + tested)
 - Added: friend rooms — `POST /api/duels/rooms` (8-char Crockford invite code, I/L/O-normalized, case-insensitive), member-only room state, join with `room_full`/`already_in_match` guards, leave, host start (REST + socket); migrations 0006–0009 (`rooms` + `guest_id`/`ready_state`/`difficulty`, `matches` + `swing_points`/CHECKs, `match_players`, `submissions.match_id`, winner FK → cascade)
 - Added: Socket.IO gateway — one-time short-lived socket tokens (`GET /api/duels/socket-token`), presence dots, authoritative `room_state` resends, `match_started`/`progress`/`match_ended` broadcasts, disconnect grace marking

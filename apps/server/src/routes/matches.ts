@@ -280,19 +280,8 @@ export async function matchRoutes(app: FastifyInstance, opts: MatchDeps): Promis
     }
 
     if (applied) {
-      const swing = applied.match.swingPoints ?? WIN_SWING_MIN;
-      const deltas: Record<string, number> =
-        applied.outcome.kind === 'draw'
-          ? Object.fromEntries(players.map((p) => [p.userId, -DRAW_PENALTY]))
-          : applied.outcome.kind === 'forfeit'
-            ? {
-                [applied.outcome.winnerId]: FORFEIT_REWARD,
-                [applied.outcome.loserId]: -FORFEIT_PENALTY,
-              }
-            : {
-                [applied.outcome.winnerId]: swing,
-                [applied.outcome.loserId]: -swing,
-              };
+      // Deltas exactly as applied (floor rule may reduce a poor loser's loss).
+      const deltas = applied.deltas;
       await app.gateway.broadcastMatchEnded(match.id, {
         resultType: applied.outcome.kind,
         winnerId: applied.outcome.kind === 'draw' ? null : applied.outcome.winnerId,
@@ -310,20 +299,7 @@ export async function matchRoutes(app: FastifyInstance, opts: MatchDeps): Promis
         ? {
             resultType: applied.outcome.kind,
             winnerId: applied.outcome.kind === 'draw' ? null : applied.outcome.winnerId,
-            deltas: Object.fromEntries(
-              players.map((p) => [
-                p.userId,
-                applied!.outcome.kind === 'draw'
-                  ? -DRAW_PENALTY
-                  : applied!.outcome.winnerId === p.userId
-                    ? applied!.outcome.kind === 'forfeit'
-                      ? FORFEIT_REWARD
-                      : (applied!.match.swingPoints ?? WIN_SWING_MIN)
-                    : applied!.outcome.kind === 'forfeit'
-                      ? -FORFEIT_PENALTY
-                      : -(applied!.match.swingPoints ?? WIN_SWING_MIN),
-              ]),
-            ) as Record<string, number>,
+            deltas: applied.deltas,
           }
         : null,
     };
