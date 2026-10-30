@@ -4,6 +4,7 @@ import { SplitShell } from '../../components/SplitShell';
 import { Chip, Eyebrow, Headline, Stat } from '../../components/ui';
 import { getCurrentUser } from '../../lib/session';
 import { getChallengeList, type ChallengeListItem } from '../../lib/practice';
+import { getDaily } from '../../lib/daily';
 
 /** Empty state: real condition (no published challenges), never fake rows. */
 function EmptyRoster() {
@@ -96,7 +97,8 @@ export default async function PracticePage() {
     redirect('/login');
   }
 
-  const challenges = await getChallengeList();
+  const [challenges, daily] = await Promise.all([getChallengeList(), getDaily()]);
+  const dailyChallenge = daily?.challenge ?? null;
 
   return (
     <SplitShell
@@ -150,6 +152,39 @@ export default async function PracticePage() {
                 {challenges.filter((c) => c.solved).length}/{challenges.length} solved
               </span>
             </div>
+
+            {/* F09: today's daily, pinned above the roster. */}
+            {dailyChallenge && (
+              <Link
+                href={`/practice/${dailyChallenge.slug}`}
+                className="group mb-6 block border border-accent/60 bg-surface p-5 transition-colors hover:border-accent"
+              >
+                <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-accent">
+                  <span aria-hidden className="inline-block h-1.5 w-1.5 bg-accent" />
+                  Today&rsquo;s daily — everyone, same problem
+                </div>
+                <div className="mt-2 flex items-start justify-between gap-3">
+                  <h3 className="break-words font-mono text-base font-bold uppercase tracking-[0.05em] text-cream transition-colors group-hover:text-accent">
+                    {dailyChallenge.title}
+                  </h3>
+                  {daily?.you?.solved && (
+                    <span className="flex flex-shrink-0 items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-accent">
+                      <span aria-hidden className="inline-block h-2 w-2 bg-accent" />
+                      Solved
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Chip variant="dark">{dailyChallenge.difficulty}</Chip>
+                  {daily?.you && daily.you.attempts > 0 && !daily.you.solved && (
+                    <span className="font-mono text-xs text-neutral-500">
+                      {daily.you.attempts} {daily.you.attempts === 1 ? 'attempt' : 'attempts'}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            )}
+
             <div>
               {challenges.map((challenge, i) => (
                 <ChallengeRow key={challenge.slug} index={i} challenge={challenge} />

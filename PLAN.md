@@ -187,8 +187,10 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 **Test gate**
 - [x] A lone new user can play a full duel against the bot
 - [x] Bot sometimes wins and sometimes loses; points follow decision D6
-- [ ] Daily challenge changes each day
-- [ ] All 30 to 50 challenges pass with their reference solutions
+- [x] Daily challenge changes each day
+- [ ] All 30 to 50 challenges pass with their reference solutions (tooling
+      shipped: `challenge-verify.ts` — 8/8 of the current pool green; the
+      count gate closes when the owner's 30–50 are authored + published)
 - [ ] Spam of submits, rooms, and signups is throttled
 - [ ] Errors are logged with match, user, and submission IDs
 - [ ] Production secrets set, none in git; restoring from a backup works
@@ -245,6 +247,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 | 2026-10-30 | 3 (review fixes) | Shipped | Loser's DEFEAT overlay could be missed → 4 s authoritative poll + self-healing handlers; guest lobby could strand → navigate from room_state + poll. Pushed `a13a667` |
 | 2026-10-30 | 4 (F08/F09) | Iteration 4 started | Owner: bots first, randoms after (iteration 5). D5 floor restored (loser pays only what they have, DB CHECK 0010, owner account clamped); push `6342a82` |
 | 2026-10-30 | 4 (F08) | Build + test passed | KERN BOT: migrations 0011 (bot plan on the match row) + 0012 (partial unique `users_is_bot_single` — fixed a 3-KERN race), `POST /api/duels/bot`, sweeper-executed plans (restart-safe), D6 zero deltas end-to-end; bot duel test matrix 29/29; throwaway accounts cleaned |
+| 2026-10-30 | 4 (F09) | Build + test passed | Daily challenge: migration 0013 (`daily_challenges`), deterministic date-seeded pick with no-repeat (services/daily.ts), `GET /api/daily` (signed-out viewable), `/daily` page + countdown + header/practice entries; seed split into `seed-data.ts` and made re-run safe (skips existing slugs); `challenge-verify.ts` pool gate 8/8 via real Judge0; daily matrix 21/21; throwaways cleaned |
 
 ## 7. Backlog (parked, not in v1)
 

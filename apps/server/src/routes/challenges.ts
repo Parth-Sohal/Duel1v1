@@ -12,6 +12,9 @@ import {
 } from '../services/challenges.js';
 import { judgeLoop, parseSubmissionBody } from '../services/judging.js';
 import { allowJudgeSubmission } from '../services/rate-limit.js';
+import { dailyPayload } from '../services/daily.js';
+import { SESSION_COOKIE } from '@coding-arena/shared';
+import { resolveSession } from '../services/sessions.js';
 
 type ChallengeDeps = {
   db: Database;
@@ -164,5 +167,14 @@ export async function challengeRoutes(app: FastifyInstance, opts: ChallengeDeps)
       return reply.code(404).send({ error: 'challenge_not_found' });
     }
     return { submissions: await listOwnSubmissions(db, request.user!.id, found.challenge.id) };
+  });
+
+  /** GET /daily — today's challenge for EVERYONE (F09). Viewable signed-out
+   * (session resolved opportunistically, never 401s); solving still goes
+   * through the authed practice flow (/practice/:slug). */
+  app.get('/daily', async (request) => {
+    const token = request.cookies[SESSION_COOKIE];
+    const session = token ? await resolveSession(db, token) : null;
+    return dailyPayload(db, session?.user.id ?? null);
   });
 }

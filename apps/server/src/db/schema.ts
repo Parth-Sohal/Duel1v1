@@ -1,6 +1,7 @@
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -139,6 +140,17 @@ export const challengeVersions = pgTable('challenge_versions', {
   tests: jsonb('tests').notNull(), // { args, expected, hidden }[] — args are the function's call arguments
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [unique('challenge_versions_challenge_version_unique').on(t.challengeId, t.version)]);
+
+/**
+ * F09 daily challenge: one published version per UTC day, decided by the
+ * deterministic pick in services/daily.ts and cached here on first request
+ * (then authoritative — a restart can never change today's pick).
+ */
+export const dailyChallenges = pgTable('daily_challenges', {
+  day: date('day', { mode: 'string' }).primaryKey(), // 'YYYY-MM-DD', UTC
+  challengeVersionId: uuid('challenge_version_id').notNull().references(() => challengeVersions.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 /**
  * Practice submissions. Only SUBMIT is saved (RUN is ephemeral). Results
