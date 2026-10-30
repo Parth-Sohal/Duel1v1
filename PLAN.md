@@ -168,11 +168,11 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 
 **Bug fixes surfaced by the test gate (2026-10-30):** invite-code generator could emit I/L/O which lookups normalize away (~half of rooms unjoinable) → true Crockford alphabet; concurrent READY toggles could erase each other (read-modify-write on jsonb) → atomic SQL merge; socket `room:join` now normalizes codes like REST; Neon pool gains TCP keepalive against half-open connection hangs.
 
-*(Live-match + result screen review with owner pending; see iteration-3 close in docs/reports.)*
+*(Live-match + result screens reviewed by the owner on 2026-10-30 — review surfaced two real fixes, both shipped: the loser's DEFEAT overlay could be missed (poll fallback added) and the points floor was restored. Iteration 3 closed.)*
 
 ---
 
-### [ ] Iteration 4 — Soft launch
+### [~] Iteration 4 — Soft launch
 **Goal:** safe and fun for real users, even when few are online.
 
 **Features**
@@ -240,7 +240,9 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 | 2026-10-28 | 1 (F02b) | Build + test passed | Own-photo upload: migration 0003 (`avatars`), PUT/DELETE `/api/me/avatar` + public serve, 256×256 client crop, upload beats Google photo; 14/14 API matrix + live UI round-trip + responsive; confirmed in real use |
 | 2026-10-28 | 1 | Iteration complete - report written, merged to main | All account features shipped (F01 Google login, F02 profile, F02b avatar upload, F03 email login); `feature/F02b-avatar-upload` merged to `main` |
 | 2026-10-29 | 2 (F04) | Build + test passed | Practice mode: migrations 0004–0005, Judge0 via free public CE endpoint (D4), function-call judging (decision 11 revised — owner wants return-value solutions), 8 seed challenges owner-signed-off and published; API matrix 35/35, UI smoke 21/21, prod build green |
-| | | | |
+| 2026-10-30 | 3 (F05/F06/F07) | **Iteration complete** | Friend duels: rooms + Socket.IO gateway, match engine (D5 points), history + repeat rule; gates: f05 48/48, engine 20/20, soak 62/62, restart 6/6, prod smoke 25/25; merged `88b92d3`; deployed + owner-reviewed |
+| 2026-10-30 | 3 (review fixes) | Shipped | Loser's DEFEAT overlay could be missed → 4 s authoritative poll + self-healing handlers; guest lobby could strand → navigate from room_state + poll. Pushed `a13a667` |
+| 2026-10-30 | 4 (F08/F09) | Iteration 4 started | Owner: bots first, randoms after (iteration 5). D5 floor restored (loser pays only what they have, DB CHECK 0010, owner account clamped); push `6342a82` |
 
 ## 7. Backlog (parked, not in v1)
 

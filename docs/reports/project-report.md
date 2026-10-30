@@ -12,7 +12,7 @@ One living report for the whole project. Update it at the end of every iteration
 | Goal | 1v1 timed coding duels, built as a real product |
 | Stack | Next.js (Vercel), Node + Fastify + Socket.IO (Render), PostgreSQL (Neon), Judge0 (later) |
 | Method | Iterations: build one, test it, report, then start the next |
-| Current iteration | Iteration 3 - Friend duels (built + tested; live-match/result review pending, then merge) |
+| Current iteration | Iteration 4 - Soft launch (bot opponent, daily challenge, hardening) |
 | Live URLs | Web: https://duel1v1.vercel.app · Server: https://duel1v1.onrender.com |
 | Last updated | 2026-10-30 |
 
@@ -50,7 +50,8 @@ One living report for the whole project. Update it at the end of every iteration
 | 0 | Foundation | F0 setup and deploy | **Done** (2026-10-27) |
 | 1 | Accounts | F1 login, F2 profile, F2b avatar upload, F3 email login | **Done** (2026-10-28) |
 | 2 | Practice mode | F3 challenges, editor, run code | **Done** (2026-10-29) |
-| 3 | Friend duels | F4 rooms, F5 match engine, F6 history | Built + tested (2026-10-30) |
+| 3 | Friend duels | F4 rooms, F5 match engine, F6 history | **Done** (2026-10-30, owner-reviewed) |
+| 4 | Soft launch | F7 bot + daily challenge, F8 hardening | In progress |
 | 4 | Soft launch | F7 bot and daily challenge, F8 launch hardening | Not started |
 | 5 | Growth | F9 matchmaking, F10 AI analysis, F11 UI polish, F12 C++ and Java | Not started |
 
@@ -227,7 +228,7 @@ yes — Iteration 3 (friend duels)
 ### Iteration 3 - Friend duels
 
 Branch: `feature/F05-duels` (F05 rooms + F06 engine + F07 history, `docs/features/F0{5,6,7}-*.md`)
-Status: passed (all server gates green; live-match + result screen review with owner pending)
+Status: passed (owner-reviewed 2026-10-30; review fixes shipped: defeat-overlay fallback, points floor)
 
 #### What was built
 - **Rooms (F05):** `rooms` table (+ migrations 0006-0009), `POST /api/duels/rooms` (server-generated 8-char Crockford invite code, case-insensitive, I/L/O→1/1/0 normalization), `GET /api/duels/rooms/:code` (member-only state), join (seat 2, `room_full`/`already_in_match` guards), leave, host start (REST + socket), one-time socket tokens (`GET /api/duels/socket-token`, `SOCKET_TOKEN_TTL_MS`, single use) so the browser can socket-auth cross-origin without cookies.
@@ -268,7 +269,7 @@ Status: passed (all server gates green; live-match + result screen review with o
 
 #### Works on
 - [x] Server flow verified end to end (two scripted players over real sockets + real Judge0)
-- [ ] Live-match + result screen visual review with owner (pending — planned right after merge)
+- [x] Live-match + result screen visual review with owner (2026-10-30 — DEFEAT-overlay miss found and fixed with the poll fallback)
 
 #### Changes to plan or architecture
 - **D5 confirmed by owner (decision 12):** win swing randomized +29…+31, draw −10 both, forfeit +10/−10, 30 s disconnect grace — recorded in PLAN, shared constants, and the engine. **Revised by the owner on 2026-10-30 (review feedback): points are floored at 0** — a poor loser pays only what they have, the winner always takes the full swing, new accounts still start at 0; enforced in `finishMatch` + a DB `CHECK (points >= 0)` (migration 0010)
@@ -276,7 +277,7 @@ Status: passed (all server gates green; live-match + result screen review with o
 - Free Judge0 CE endpoint reused from F04; rate limit 20 judge calls / 5 min / user applies to duel submits too
 
 #### Decision: go to the next iteration?
-pending owner review of the live-match + result screens, then yes — Iteration 4 (soft launch: bot, daily challenge, hardening)
+**Yes** (2026-10-30) — owner reviewed the live-match + result screens and signed off; review feedback shipped (defeat-overlay poll fallback, points floor restored). Next: Iteration 4 (soft launch: bot, daily challenge, hardening)
 
 #### Carried to backlog
 - Strangers matchmaking (backlog "ANYONE"), bot opponent (iteration 4 "KERN BOT"), spectator live arena
