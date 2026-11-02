@@ -12,9 +12,9 @@ One living report for the whole project. Update it at the end of every iteration
 | Goal | 1v1 timed coding duels, built as a real product |
 | Stack | Next.js (Vercel), Node + Fastify + Socket.IO (Render), PostgreSQL (Neon), Judge0 (later) |
 | Method | Iterations: build one, test it, report, then start the next |
-| Current iteration | Iteration 4 - Soft launch (bot opponent, daily challenge, hardening) |
+| Current iteration | Iteration 4 complete — soft launch live; iteration 5 (growth) starts from real feedback |
 | Live URLs | Web: https://duel1v1.vercel.app · Server: https://duel1v1.onrender.com |
-| Last updated | 2026-10-30 |
+| Last updated | 2026-11-02 |
 
 ## 2. Decisions made so far
 
@@ -52,7 +52,7 @@ One living report for the whole project. Update it at the end of every iteration
 | 1 | Accounts | F1 login, F2 profile, F2b avatar upload, F3 email login | **Done** (2026-10-28) |
 | 2 | Practice mode | F3 challenges, editor, run code | **Done** (2026-10-29) |
 | 3 | Friend duels | F4 rooms, F5 match engine, F6 history | **Done** (2026-10-30, owner-reviewed) |
-| 4 | Soft launch | F7 bot + daily challenge, F8 hardening | **Done** (2026-10-30, owner-reviewed in part) |
+| 4 | Soft launch | F7 bot + daily challenge, F8 hardening | **Done** (2026-11-02, owner-signed-off) |
 | 5 | Growth | F9 matchmaking, F10 AI analysis, F11 UI polish, F12 C++ and Java | Not started |
 
 ## 5. Iteration reports
@@ -329,7 +329,7 @@ Status: passed (bot + daily + streak owner-reviewed 2026-10-30; hardening matrix
 - [x] Daily page + streak bar live review by owner (owner solved the day's real challenge)
 - [x] Landing / terms / privacy reachable signed-out (matrix)
 - [x] Neon restore rehearsal (owner, 2026-11-02 — copy branch verified, production untouched)
-- [ ] Owner's final "comfortable sending to strangers" sign-off
+- [x] Owner's final "comfortable sending to strangers" sign-off (2026-11-02: signed-out landing/terms/privacy/daily, feedback round-trip, live bot duel — the real duels-played counter moved 0 → 1 on their match; `OWNER_EMAILS` verified on Render)
 
 #### Changes to plan or architecture
 - **F09 pick rule:** deterministic date-seeded selection cached on first request (no server restart or clock skew can change a day's pick); salt is env-only (`DAILY_SALT`)
@@ -338,7 +338,7 @@ Status: passed (bot + daily + streak owner-reviewed 2026-10-30; hardening matrix
 - 30–50 challenge pool gate stays open pending the owner's authoring (tooling shipped, 8/8 green)
 
 #### Decision: go to the next iteration?
-**Yes, pending one owner action** — the soft-launch milestone is functionally complete and deployed (push `3136925`); the owner rehearsed the Neon restore (2026-11-02) and set `OWNER_EMAILS` on Render. The final strangers-ready sign-off closes the iteration. Iteration 5 then starts from real feedback.
+**Yes — closed 2026-11-02.** Soft launch is live and owner-signed-off (deployed push `3136925`; restore rehearsed; `OWNER_EMAILS` set; final visual pass done, counter 0 → 1 on the owner's real bot duel). Iteration 5 starts from real feedback — nothing gets built until players ask for it.
 
 #### Carried to backlog
 - Redis-backed limiters (multi-instance), status page, third-party analytics (deliberately none in v1)
