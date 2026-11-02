@@ -57,14 +57,17 @@ export function Headline({
   );
 }
 
-/** Stat block: small mono label over a big headline numeral. */
+/** Stat block: small mono label over a big headline numeral. `unit` renders
+ * smaller, baseline-aligned (e.g. 256 with unit "MB"). */
 export function Stat({
   label,
   value,
+  unit,
   dark = false,
 }: {
   label: string;
   value: string | number;
+  unit?: string;
   dark?: boolean;
 }) {
   return (
@@ -82,6 +85,7 @@ export function Stat({
         }`}
       >
         {value}
+        {unit && <span className="ml-1 align-baseline text-lg font-bold">{unit}</span>}
       </span>
     </div>
   );

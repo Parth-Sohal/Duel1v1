@@ -16,6 +16,10 @@
   /* Accent */
   --color-accent: #ff4d15; /* THE accent: logo braces, markers, links */
 
+  /* Difficulty labels on dark (roster) — medium uses the accent */
+  --color-easy: #3fb950; /* green — easy */
+  --color-hard: #f85149; /* red — hard */
+
   /* Text on cream */
   --color-carbon-text: #09090a;
   --color-muted: #57534e; /* secondary text on cream — 6.8:1 on cream, WCAG AA */
