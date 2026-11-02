@@ -1,9 +1,9 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { SplitShell } from '../../components/SplitShell';
-import { ChallengeRoster, type DailyTeaser } from '../../components/ChallengeRoster';
-import { Eyebrow, Headline, Stat } from '../../components/ui';
+import { Chip, Eyebrow, Headline, Stat } from '../../components/ui';
 import { getCurrentUser } from '../../lib/session';
-import { getChallengeList } from '../../lib/practice';
+import { getChallengeList, type ChallengeListItem } from '../../lib/practice';
 import { getDaily } from '../../lib/daily';
 
 /** Empty state: real condition (no published challenges), never fake rows. */
@@ -44,6 +44,48 @@ function ArenaOffline() {
   );
 }
 
+/** One roster row: number, title, difficulty chip + tags, solved marker in accent. */
+function ChallengeRow({ index, challenge }: { index: number; challenge: ChallengeListItem }) {
+  return (
+    <Link href={`/practice/${challenge.slug}`} className="group block border-b border-line-dark py-5">
+      <div className="flex items-start gap-4">
+        <span className="w-8 flex-shrink-0 font-mono text-sm font-bold text-neutral-600 transition-colors group-hover:text-accent">
+          {String(index + 1).padStart(2, '0')}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="break-words font-mono text-base font-bold uppercase tracking-[0.05em] text-cream transition-colors group-hover:text-accent">
+              {challenge.title}
+            </h3>
+            {challenge.solved && (
+              <span className="flex flex-shrink-0 items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-accent">
+                <span aria-hidden className="inline-block h-2 w-2 bg-accent" />
+                Solved
+              </span>
+            )}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Chip variant="dark">{challenge.difficulty}</Chip>
+            {challenge.tags.map((tag) => (
+              <span key={tag} className="font-mono text-xs text-neutral-400">
+                {tag}
+              </span>
+            ))}
+            {challenge.attempts > 0 && !challenge.solved && (
+              <span className="font-mono text-xs text-neutral-500">
+                {challenge.attempts} {challenge.attempts === 1 ? 'attempt' : 'attempts'}
+              </span>
+            )}
+          </div>
+        </div>
+        <span aria-hidden className="flex-shrink-0 font-mono text-sm text-neutral-600 transition-colors group-hover:text-accent">
+          ➔
+        </span>
+      </div>
+    </Link>
+  );
+}
+
 /**
  * Practice list (docs/features/F04-practice-mode.md): protocol on the cream
  * half, the live challenge roster on the dark half. Only published challenges
@@ -56,17 +98,7 @@ export default async function PracticePage() {
   }
 
   const [challenges, daily] = await Promise.all([getChallengeList(), getDaily()]);
-  const dailyTeaser: DailyTeaser | null =
-    daily?.challenge != null
-      ? {
-          slug: daily.challenge.slug,
-          title: daily.challenge.title,
-          difficulty: daily.challenge.difficulty,
-          tags: daily.challenge.tags,
-          solved: daily.you?.solved ?? false,
-          attempts: daily.you?.attempts ?? 0,
-        }
-      : null;
+  const dailyChallenge = daily?.challenge ?? null;
 
   return (
     <SplitShell
@@ -75,22 +107,21 @@ export default async function PracticePage() {
           <div className="mb-4">
             <Eyebrow marker="square">Solo drills · warm-up floor</Eyebrow>
           </div>
-          <Headline className="mb-6">
-            Practice<span aria-hidden className="text-accent">.</span>
-          </Headline>
+          <Headline className="mb-6">Practice.</Headline>
           <p className="mb-10 max-w-md font-grotesk text-sm leading-relaxed text-muted">
             Read the problem, write the function, run it against the samples, submit against everything. You return
             the answer — the judge calls your function. No opponent yet; this is where the reps happen before the
             duels.
           </p>
 
-          <div className="mb-10 max-w-md border-t border-line-light pt-8">
-            <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-              <Stat label="Languages" value="JS · PY" />
-              <Stat label="CPU limit" value={5} unit="s" />
-              <Stat label="Memory" value={256} unit="MB" />
-              <Stat label="Challenges" value={challenges ? challenges.length : '—'} />
-            </div>
+          <div className="mb-10 grid max-w-md grid-cols-2 gap-x-8 gap-y-6">
+            <Stat label="Languages" value="JS · PY" />
+            <Stat label="CPU limit" value={`${5}s`} />
+            <Stat label="Memory" value="256 MB" />
+            <Stat
+              label="Challenges"
+              value={challenges ? String(challenges.length) : '—'}
+            />
           </div>
 
           <div className="max-w-md border border-line-light bg-sand/60 p-4">
@@ -99,9 +130,7 @@ export default async function PracticePage() {
               How judging works
             </div>
             <p className="font-grotesk text-sm leading-relaxed text-muted">
-              <code className="bg-sand px-1 font-mono font-bold text-carbon">RUN</code> calls your function on the
-              visible samples only and saves nothing.{' '}
-              <code className="bg-sand px-1 font-mono font-bold text-carbon">SUBMIT</code> judges the hidden tests
+              RUN calls your function on the visible samples only and saves nothing. SUBMIT judges the hidden tests
               too — pass them all and the challenge is marked solved. You return the answer; you never parse input
               or print it.
             </p>
@@ -114,16 +143,58 @@ export default async function PracticePage() {
         ) : challenges.length === 0 ? (
           <EmptyRoster />
         ) : (
-          <ChallengeRoster challenges={challenges} daily={dailyTeaser} />
+          <div className="mx-auto w-full max-w-md">
+            <div className="mb-2 flex items-center justify-between">
+              <Eyebrow dark marker="notch">
+                Challenge roster
+              </Eyebrow>
+              <span className="font-mono text-xs uppercase tracking-[0.1em] text-neutral-400">
+                {challenges.filter((c) => c.solved).length}/{challenges.length} solved
+              </span>
+            </div>
+
+            {/* F09: today's daily, pinned above the roster. */}
+            {dailyChallenge && (
+              <Link
+                href={`/practice/${dailyChallenge.slug}`}
+                className="group mb-6 block border border-accent/60 bg-surface p-5 transition-colors hover:border-accent"
+              >
+                <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-accent">
+                  <span aria-hidden className="inline-block h-1.5 w-1.5 bg-accent" />
+                  Today&rsquo;s daily — everyone, same problem
+                </div>
+                <div className="mt-2 flex items-start justify-between gap-3">
+                  <h3 className="break-words font-mono text-base font-bold uppercase tracking-[0.05em] text-cream transition-colors group-hover:text-accent">
+                    {dailyChallenge.title}
+                  </h3>
+                  {daily?.you?.solved && (
+                    <span className="flex flex-shrink-0 items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-accent">
+                      <span aria-hidden className="inline-block h-2 w-2 bg-accent" />
+                      Solved
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Chip variant="dark">{dailyChallenge.difficulty}</Chip>
+                  {daily?.you && daily.you.attempts > 0 && !daily.you.solved && (
+                    <span className="font-mono text-xs text-neutral-500">
+                      {daily.you.attempts} {daily.you.attempts === 1 ? 'attempt' : 'attempts'}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            )}
+
+            <div>
+              {challenges.map((challenge, i) => (
+                <ChallengeRow key={challenge.slug} index={i} challenge={challenge} />
+              ))}
+            </div>
+          </div>
         )
       }
       leftFooter="Your code runs only inside the judge sandbox — never in your browser."
-      rightFooter={
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-          <span>Synced with the arena engine.</span>
-          <span className="hidden sm:inline">Keyboard: [J/K] navigate · [Enter] enter problem</span>
-        </div>
-      }
+      rightFooter="Runs show samples only. Submissions judge hidden tests."
     />
   );
 }

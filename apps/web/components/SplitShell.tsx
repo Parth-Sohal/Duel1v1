@@ -33,8 +33,8 @@ export function SplitShell({
 }: {
   left: ReactNode;
   right: ReactNode;
-  leftFooter: ReactNode; // string or rich node (e.g. a split keyboard hint)
-  rightFooter: ReactNode;
+  leftFooter: string;
+  rightFooter: string;
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-carbon">
