@@ -328,7 +328,8 @@ Status: passed (bot + daily + streak owner-reviewed 2026-10-30; hardening matrix
 - [x] Lone new user → bot duel → history "vs KERN", zero points moved (owner visual check: "ya ok working")
 - [x] Daily page + streak bar live review by owner (owner solved the day's real challenge)
 - [x] Landing / terms / privacy reachable signed-out (matrix)
-- [ ] Owner's final "comfortable sending to strangers" sign-off + the Neon restore rehearsal (~10 min, touches no prod data)
+- [x] Neon restore rehearsal (owner, 2026-11-02 — copy branch verified, production untouched)
+- [ ] Owner's final "comfortable sending to strangers" sign-off
 
 #### Changes to plan or architecture
 - **F09 pick rule:** deterministic date-seeded selection cached on first request (no server restart or clock skew can change a day's pick); salt is env-only (`DAILY_SALT`)
@@ -337,7 +338,7 @@ Status: passed (bot + daily + streak owner-reviewed 2026-10-30; hardening matrix
 - 30–50 challenge pool gate stays open pending the owner's authoring (tooling shipped, 8/8 green)
 
 #### Decision: go to the next iteration?
-**Yes, pending two owner actions** — the soft-launch milestone is functionally complete; the owner runs the Neon restore rehearsal and gives the final strangers-ready sign-off. Iteration 5 then starts from real feedback.
+**Yes, pending one owner action** — the soft-launch milestone is functionally complete and deployed (push `3136925`); the owner rehearsed the Neon restore (2026-11-02) and set `OWNER_EMAILS` on Render. The final strangers-ready sign-off closes the iteration. Iteration 5 then starts from real feedback.
 
 #### Carried to backlog
 - Redis-backed limiters (multi-instance), status page, third-party analytics (deliberately none in v1)

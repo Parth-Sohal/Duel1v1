@@ -56,9 +56,10 @@ error tracking, a real landing page, legal pages, and proven backups.
       (gate asserts `git check-ignore` on `.env` files and that only
       `.env.example` files are tracked; new vars documented:
       `OWNER_EMAILS`, `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `DAILY_SALT`)
-- [ ] Restoring from a backup works (rehearsed on the Neon branch, documented)
-      (runbook written at `docs/ops/backup-restore.md`; the rehearsal itself is
-      an owner action in the Neon console — ~10 minutes, touches no prod data)
+- [x] Restoring from a backup works (rehearsed on the Neon branch, documented)
+      (runbook at `docs/ops/backup-restore.md`; **owner rehearsed 2026-11-02**:
+      restored a copy branch ~1 h back, verified row counts in the SQL editor,
+      deleted the branch — production untouched)
 - [x] Landing page, terms, privacy reachable signed-out; feedback form saves
       (`/`, `/terms`, `/privacy` render 200 signed-out; feedback saves with a
       500-char cap; the owner reading list and counts endpoints 403 non-owners)

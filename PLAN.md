@@ -196,10 +196,11 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
       bot 3/user/min, socket tokens 6/user/min, feedback 3 accepted/10 min)
 - [x] Errors are logged with match, user, and submission IDs
       (pino logs carry the ids at every touchpoint; Sentry wired env-gated)
-- [ ] Production secrets set, none in git; restoring from a backup works
-      (no secrets in git verified by the gate + env examples updated; the
-      restore rehearsal is the owner's ~10-minute Neon console action —
-      runbook at `docs/ops/backup-restore.md`)
+- [x] Production secrets set, none in git; restoring from a backup works
+      (no secrets in git verified by the gate + env examples updated;
+      **owner rehearsed the Neon PITR restore 2026-11-02**: restored a copy
+      branch ~1 h back, verified row counts, deleted the branch — runbook at
+      `docs/ops/backup-restore.md`)
 - [ ] You are comfortable sending the link to strangers
 
 **Milestone:** soft launch to your college, friends, and coding communities. Collect feedback and numbers before building more.
@@ -256,6 +257,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 | 2026-10-30 | 4 (F09) | Build + test passed | Daily challenge: migration 0013 (`daily_challenges`), deterministic date-seeded pick with no-repeat (services/daily.ts), `GET /api/daily` (signed-out viewable), `/daily` page + countdown + header/practice entries; seed split into `seed-data.ts` and made re-run safe (skips existing slugs); `challenge-verify.ts` pool gate 8/8 via real Judge0; daily matrix 21/21; throwaways cleaned |
 | 2026-10-30 | 4 (F09 streak) | Build + test passed | Owner-requested streak bar at the bottom of `/daily`: last 14 days, orange = daily solved, current + longest streak per player (accepted submits only; open today never breaks the run); matrix extended to 28/28 |
 | 2026-10-30 | 4 (F10) | Build + test passed | Hardening: migration 0014 (`events` + `feedback`), one generic sliding-window limiter (register 3/IP/h, room ops 10/user/min, bot 3/user/min, socket tokens 6/user/min, feedback 3 accepted/10 min), owner-only counts + feedback list (OWNER_EMAILS), public real duels-played counter, brutalist landing + terms + privacy, profile feedback form (500 chars, drafts don't burn budget), env-gated Sentry (both apps, SDK not even loaded without a DSN), structured logs with match/user/submission ids, backup runbook `docs/ops/backup-restore.md`; burst assertions in the matrix (sequential slow requests slide out of a 60 s window); matrix 30/30; restore rehearsal = owner action in Neon console |
+| 2026-11-02 | 4 (F10) | Deployed + owner rehearsed restore | Push `3136925` live on Render + Vercel (F10 endpoints + pages verified in prod); owner set `OWNER_EMAILS` on Render (service restarted); owner rehearsed the Neon PITR restore (copy branch, counts verified, branch deleted) — backup gate closed |
 
 ## 7. Backlog (parked, not in v1)
 
