@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-11-02] Reverted: both UI restyles removed (owner decision)
+- Reverted: **/practice roster restyle** (`aacf0e3`) and **workbench restyle + resizable split** (`92478b8`) removed from `main` at the owner's request — the tree is again byte-identical to the challenge-pool merge (`c095637`); **the 40-challenge pool is unaffected and stays live**
+- Removed with them: resizable split + pane collapse buttons, editor gutter/syntax highlight, `EngineLatency` telemetry widget, structured statement (PARAMETERS/RETURNS), sticky `.practice-header` band, filter tabs, J/K nav, and the `/api`-prefixed health registration (nothing else consumed it; the bare `/health` probe for Render remains)
+- Not reverted: everything from the challenge pool work — seed data, freeze/verify scripts, review doc, PLAN gate
+
 ## [2026-11-02] Challenge pool 8 → 40 + practice roster restyle
 - Added: **32 new challenges** (12 easy / 12 medium / 8 hard, `scripts/seed-data-pool2.ts`) — expected answers computed by freezing both language references through the real Judge0 (byte-identical or the challenge fails; 160 tests, zero hand-typed answers), inserted UNPUBLISHED, owner reviewed via the generated review doc (`docs/reports/challenge-pool2-review.md`, rendered from the DB) and signed off; published via the existing `f04-publish.ts`. Pool gate `challenge-verify.ts`: **40/40** through real Judge0
 - Fixed: the first freeze run failed correctly — 12 JavaScript references contained TypeScript-only syntax (type annotations, `Set<number>`, non-null `!`) that plain Node can't run; stripped, re-frozen clean. Seed type now includes `hard` (DB enum already did); loader only judges slugs not yet in the DB (re-runs stay cheap and safe)
