@@ -12,7 +12,7 @@ One living report for the whole project. Update it at the end of every iteration
 | Goal | 1v1 timed coding duels, built as a real product |
 | Stack | Next.js (Vercel), Node + Fastify + Socket.IO (Render), PostgreSQL (Neon), Judge0 (later) |
 | Method | Iterations: build one, test it, report, then start the next |
-| Current iteration | Iteration 4 complete — soft launch live; iteration 5 (growth) starts from real feedback |
+| Current iteration | Iteration 4 complete — soft launch live; post-sign-off owner requests shipped (challenge pool grown to 40, verify 40/40; practice roster restyled); iteration 5 (growth) starts from real feedback |
 | Live URLs | Web: https://duel1v1.vercel.app · Server: https://duel1v1.onrender.com |
 | Last updated | 2026-11-02 |
 
@@ -303,7 +303,7 @@ Status: passed (bot + daily + streak owner-reviewed 2026-10-30; hardening matrix
 | Bot | Duel vs KERN end to end | 29/29 pass | `f08-bot-test.ts` (lone player full duel, win + loss paths, D6 zero deltas, restart-safety, single KERN row) |
 | Daily | Daily pick + solve round-trip | 21/21 pass | `f09-daily-test.ts` (same challenge for everyone, deterministic, no-repeat, solved state, streaks null signed-out) |
 | Streak | Streak bar | (in 28/28) pass | Simulated 3-day run: current = 3, max = 3, cells correct; rival stays 0 |
-| Pool | Challenge verification | 8/8 pass | `challenge-verify.ts` via real Judge0 (both languages where seeded) |
+| Pool | Challenge verification | 8/8 pass → **40/40** (pool grown 2026-11-02) | `challenge-verify.ts` via real Judge0 (both languages); 32 new challenges (12 easy / 12 medium / 8 hard) frozen, owner-signed-off, published |
 | Hardening | F10 matrix | 30/30 pass | `f10-hardening-test.ts` (all five limits burst-tested concurrently with exact allowed/429 splits; events recorded; owner guards 403/401; feedback validation + cap + reading list; landing/terms/privacy 200 signed-out; secrets-in-git audit) |
 | Build | Server tsc, lint, web build | pass | Web build green after removing `sendDefaultPii` (not in the Sentry SDK types; PII off by default anyway) |
 
@@ -335,14 +335,13 @@ Status: passed (bot + daily + streak owner-reviewed 2026-10-30; hardening matrix
 - **F09 pick rule:** deterministic date-seeded selection cached on first request (no server restart or clock skew can change a day's pick); salt is env-only (`DAILY_SALT`)
 - **F08 architecture:** bot decided-once + sweeper-executed (DB-resident) instead of in-memory timers
 - **F10 owner guard:** `UserPublic` still has no email; owner endpoints look the email up server-side against `OWNER_EMAILS`
-- 30–50 challenge pool gate stays open pending the owner's authoring (tooling shipped, 8/8 green)
+- 30–50 challenge pool gate **closed 2026-11-02** at 40 published (32 new in `scripts/seed-data-pool2.ts`; first freeze caught TS-only syntax in 12 JS references — the gate worked, stripped and re-frozen)
 
 #### Decision: go to the next iteration?
 **Yes — closed 2026-11-02.** Soft launch is live and owner-signed-off (deployed push `3136925`; restore rehearsed; `OWNER_EMAILS` set; final visual pass done, counter 0 → 1 on the owner's real bot duel). Iteration 5 starts from real feedback — nothing gets built until players ask for it.
 
 #### Carried to backlog
 - Redis-backed limiters (multi-instance), status page, third-party analytics (deliberately none in v1)
-- Challenge pool 30–50 (owner-authored, verify tooling ready)
 - Random matchmaking + leaderboard (iteration 5), AI code analysis (iteration 5)
 
 ## 6. Risk register

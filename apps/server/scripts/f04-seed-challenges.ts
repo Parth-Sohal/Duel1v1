@@ -56,10 +56,10 @@ async function authoringRun(opts: { language: 'javascript' | 'python'; sourceCod
   return last!;
 }
 
-async function freezeAndVerify(): Promise<Frozen[]> {
+async function freezeAndVerify(list: SeedChallenge[]): Promise<Frozen[]> {
   type Task = { c: number; t: number; lang: 'javascript' | 'python'; source: string; stdin: string };
   const tasks: Task[] = [];
-  CHALLENGES.forEach((c, ci) =>
+  list.forEach((c, ci) =>
     c.tests.forEach((t, ti) => {
       const stdin = JSON.stringify(t.args);
       tasks.push({ c: ci, t: ti, lang: 'javascript', source: composeSource('javascript', c.reference.javascript, c.entryFunctions.javascript), stdin });
@@ -70,12 +70,12 @@ async function freezeAndVerify(): Promise<Frozen[]> {
   console.log(`judging ${tasks.length} reference runs through ${process.env.JUDGE0_API_URL ?? 'https://ce.judge0.com'} ...`);
   const runs = await mapPool(tasks, 2, (task) => authoringRun({ language: task.lang, sourceCode: task.source, stdin: task.stdin }));
 
-  const expected = CHALLENGES.map(() => new Map<number, string>());
+  const expected = list.map(() => new Map<number, string>());
   let fails = 0;
   for (let i = 0; i < tasks.length; i++) {
     const task = tasks[i];
     const run = runs[i];
-    const label = `${CHALLENGES[task.c].slug} #${task.t + 1} ${task.lang}`;
+    const label = `${list[task.c].slug} #${task.t + 1} ${task.lang}`;
     if (run.status !== 'accepted') {
       console.log(`FAIL ${label}: status=${run.status} stderr=${run.stderr.slice(0, 120)} compile=${run.compileOutput.slice(0, 120)}`);
       fails++;
@@ -94,7 +94,7 @@ async function freezeAndVerify(): Promise<Frozen[]> {
     throw new Error(`${fails} reference run(s) failed or disagreed - nothing inserted`);
   }
 
-  return CHALLENGES.map((c, ci) => ({
+  return list.map((c, ci) => ({
     ...c,
     tests: c.tests.map((t, ti) => ({ ...t, expected: expected[ci].get(ti)! })),
   }));
@@ -156,7 +156,16 @@ function reviewTable(frozen: Frozen[]): void {
   }
 }
 
-const frozen = await freezeAndVerify();
+// Only JUDGE challenges that are not in the DB yet - re-running the loader
+// must never re-burn hundreds of judge calls on slugs it is going to skip.
+const alreadyHere = await db.select({ slug: challenges.slug }).from(challenges);
+const have = new Set(alreadyHere.map((r) => r.slug));
+const toFreeze = CHALLENGES.filter((c) => !have.has(c.slug));
+if (toFreeze.length < CHALLENGES.length) {
+  console.log(`${have.size} slug(s) already in the DB - skipped untouched; freezing ${toFreeze.length} new`);
+}
+
+const frozen = await freezeAndVerify(toFreeze);
 await insert(frozen);
 reviewTable(frozen);
 console.log(`\ninserted ${frozen.length} challenges (is_published=false) - awaiting owner sign-off`);
