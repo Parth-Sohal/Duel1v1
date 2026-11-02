@@ -62,6 +62,9 @@ async function main(): Promise<void> {
   app.addContentTypeParser('*', { parseAs: 'string' }, parseBody);
 
   await app.register(healthRoutes, { db });
+  // Same probe under the proxy prefix — the browser telemetry bar measures
+  // real engine latency through the same-origin /api/* rewrite.
+  await app.register(healthRoutes, { db, prefix: '/api' });
   // Spec paths are /api/auth/*; the web app proxies /api/* here (same-origin
   // in the browser so the session cookie stays first-party).
   await app.register(authRoutes, { db, prefix: '/api' });
