@@ -15,6 +15,8 @@ import {
 import { startMatch } from '../services/matches.js';
 import { createBotMatch } from '../services/bots.js';
 import { issueSocketToken } from '../services/gateway.js';
+import { allowRoomOp, allowBotDuel, allowSocketToken } from '../services/rate-limit.js';
+import { recordEvent } from '../services/events.js';
 
 /**
  * F05 friend-room REST routes (docs/features/F05-friend-rooms.md), all
@@ -34,6 +36,9 @@ export async function duelRoutes(app: FastifyInstance, opts: DuelDeps): Promise<
 
   /** POST /duels/rooms — create a room (host is seat 1). */
   app.post('/duels/rooms', auth, async (request, reply) => {
+    if (!allowRoomOp(request.user!.id)) {
+      return reply.code(429).send({ error: 'rate_limited', message: 'Too many room actions — slow down a little.' });
+    }
     const body = (request.body ?? {}) as { difficulty?: unknown };
     const difficulty =
       typeof body.difficulty === 'string' && (DIFFICULTIES as readonly string[]).includes(body.difficulty)
@@ -49,6 +54,9 @@ export async function duelRoutes(app: FastifyInstance, opts: DuelDeps): Promise<
 
   /** POST /duels/rooms/:code/join — take seat 2 (atomic). */
   app.post('/duels/rooms/:code/join', auth, async (request, reply) => {
+    if (!allowRoomOp(request.user!.id)) {
+      return reply.code(429).send({ error: 'rate_limited', message: 'Too many room actions — slow down a little.' });
+    }
     const raw = (request.params as { code: string }).code;
     if (typeof raw !== 'string' || raw.length === 0 || raw.length > 16) {
       return reply.code(404).send({ error: 'room_unavailable' });
@@ -105,13 +113,19 @@ export async function duelRoutes(app: FastifyInstance, opts: DuelDeps): Promise<
   });
 
   /** GET /duels/socket-token — one-time socket auth token (see F05 spec). */
-  app.get('/duels/socket-token', auth, async (request) => {
+  app.get('/duels/socket-token', auth, async (request, reply) => {
+    if (!allowSocketToken(request.user!.id)) {
+      return reply.code(429).send({ error: 'rate_limited', message: 'Too many socket handshakes — reconnect in a minute.' });
+    }
     return issueSocketToken(request.user!.id);
   });
 
   /** POST /duels/bot — one-click duel vs KERN (F08): creates room + seats the
    * bot + starts the match, then rolls the bot's plan. D6: no points, no stats. */
   app.post('/duels/bot', auth, async (request, reply) => {
+    if (!allowBotDuel(request.user!.id)) {
+      return reply.code(429).send({ error: 'rate_limited', message: 'Too many bot duels — KERN needs a minute.' });
+    }
     const body = (request.body ?? {}) as { difficulty?: unknown };
     const difficulty =
       typeof body.difficulty === 'string' && (DIFFICULTIES as readonly string[]).includes(body.difficulty)
@@ -123,11 +137,15 @@ export async function duelRoutes(app: FastifyInstance, opts: DuelDeps): Promise<
       return reply.code(code).send({ error: result.error });
     }
     app.log.info({ matchId: result.matchId, userId: request.user!.id }, 'bot match started');
+    await recordEvent(db, { type: 'match_started', userId: request.user!.id, matchId: result.matchId, meta: { matchType: 'bot' } });
     return { matchId: result.matchId };
   });
 
   /** POST /duels/rooms/:code/start — host only; both ready → creates the match (F06). */
   app.post('/duels/rooms/:code/start', auth, async (request, reply) => {
+    if (!allowRoomOp(request.user!.id)) {
+      return reply.code(429).send({ error: 'rate_limited', message: 'Too many room actions — slow down a little.' });
+    }
     const room = await getRoomByCode(db, normalizeInviteCode((request.params as { code: string }).code ?? ''));
     if (!room || room.status === 'closed' || room.expiresAt < new Date()) {
       return reply.code(404).send({ error: 'room_unavailable' });
@@ -145,7 +163,8 @@ export async function duelRoutes(app: FastifyInstance, opts: DuelDeps): Promise<
     }
     app.gateway.broadcastMatchStarted(room.id, result.matchId);
     await app.gateway.broadcastRoomState(room.id);
-    app.log.info({ matchId: result.matchId, roomId: room.id }, 'match started (REST)');
+    app.log.info({ matchId: result.matchId, roomId: room.id, userId: request.user!.id }, 'match started (REST)');
+    await recordEvent(db, { type: 'match_started', userId: request.user!.id, matchId: result.matchId, meta: { matchType: 'friend' } });
     return { matchId: result.matchId };
   });
 }

@@ -22,6 +22,7 @@ import { judgeLoop, parseSubmissionBody } from '../services/judging.js';
 import { allowJudgeSubmission } from '../services/rate-limit.js';
 import { finishMatch, getMatchWithPlayers, type Outcome } from '../services/matches.js';
 import { issueSocketToken } from '../services/gateway.js';
+import { recordEvent } from '../services/events.js';
 
 /**
  * F06/F07 match routes (docs/features/F06-match-engine.md, F07-history-repeat.md).
@@ -248,19 +249,32 @@ export async function matchRoutes(app: FastifyInstance, opts: MatchDeps): Promis
     );
     const redacted = redactResults(results);
 
-    await db.insert(submissions).values({
+    const [saved] = await db
+      .insert(submissions)
+      .values({
+        userId: me,
+        challengeId: detail.challenge.id,
+        challengeVersionId: detail.version.id,
+        matchId: match.id,
+        kind: 'submit',
+        language: parsed.language,
+        status: agg.status,
+        passed: results.filter((r) => r.pass).length,
+        total: results.length,
+        results: redacted,
+        sourceCode: parsed.sourceCode,
+        judgeLatencyMs: latencyMs,
+      })
+      .returning({ id: submissions.id });
+    app.log.info(
+      { userId: me, matchId: match.id, submissionId: saved.id, slug: cv[0]?.slug, status: agg.status },
+      'duel submission judged',
+    );
+    await recordEvent(db, {
+      type: 'submit',
       userId: me,
-      challengeId: detail.challenge.id,
-      challengeVersionId: detail.version.id,
       matchId: match.id,
-      kind: 'submit',
-      language: parsed.language,
-      status: agg.status,
-      passed: results.filter((r) => r.pass).length,
-      total: results.length,
-      results: redacted,
-      sourceCode: parsed.sourceCode,
-      judgeLatencyMs: latencyMs,
+      meta: { context: 'duel', slug: cv[0]?.slug ?? null, status: agg.status },
     });
 
     // Opponent sees progress only — never code or outputs.

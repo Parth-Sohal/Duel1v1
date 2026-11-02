@@ -81,6 +81,23 @@ export const RUN_MEMORY_LIMIT_MB = 256;
 /** Per-user submission rate limit (Run + Submit combined). */
 export const JUDGE_MAX_PER_WINDOW = 20;
 export const JUDGE_WINDOW_MS = 5 * 60 * 1000;
+
+/** F10 launch-hardening rate limits (docs/features/F10-hardening.md).
+ * In-memory per-instance sliding windows — single server until scale says otherwise. */
+export const REGISTER_MAX_PER_WINDOW = 3; // signups per IP
+export const REGISTER_WINDOW_MS = 60 * 60 * 1000; // per hour — account spam is expensive to undo
+export const ROOM_OPS_MAX_PER_WINDOW = 10; // create/join/start per user
+export const ROOM_OPS_WINDOW_MS = 60 * 1000;
+export const BOT_MAX_PER_WINDOW = 3; // bot duels per user
+export const BOT_WINDOW_MS = 60 * 1000;
+export const SOCKET_TOKEN_MAX_PER_WINDOW = 6; // one-time socket tokens per user
+export const SOCKET_TOKEN_WINDOW_MS = 60 * 1000;
+export const FEEDBACK_MAX_PER_WINDOW = 3; // feedback notes per user
+export const FEEDBACK_WINDOW_MS = 10 * 60 * 1000;
+export const FEEDBACK_MAX_CHARS = 500;
+/** Owner emails (comma-separated) allowed to read analytics counts. */
+export const EVENTS = ['signup', 'match_started', 'submit', 'daily_view', 'feedback'] as const;
+export type EventType = (typeof EVENTS)[number];
 /** Visible sample tests shown in the editor pane. */
 export const MAX_VISIBLE_TESTS = 3;
 /** Suffixes for the shared test-case jsonb shape: { input, expected, hidden }. */

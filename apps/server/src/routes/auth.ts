@@ -9,7 +9,8 @@ import { env } from '../config/env.js';
 import { createSession, deleteSession, resolveSession } from '../services/sessions.js';
 import { publicUser, validateDisplayName, normalizeEmail } from '../services/users.js';
 import { hashPassword, verifyPassword } from '../services/passwords.js';
-import { allowLoginAttempt, clearLoginFailures, recordFailedLogin } from '../services/rate-limit.js';
+import { allowLoginAttempt, clearLoginFailures, recordFailedLogin, allowRegister } from '../services/rate-limit.js';
+import { recordEvent } from '../services/events.js';
 
 type AuthDeps = {
   db: Database;
@@ -134,6 +135,7 @@ export async function authRoutes(app: FastifyInstance, opts: AuthDeps): Promise<
         .returning();
       user = inserted[0];
       app.log.info({ userId: user.id }, 'user created (first google login)');
+      await recordEvent(db, { type: 'signup', userId: user.id, meta: { method: 'google' } });
     } else if (claims.picture && claims.picture !== user.avatarUrl) {
       // v1 avatars come only from Google (F02 spec): if the player adds or
       // changes their Google photo, pick it up at the next sign-in — but only
@@ -187,6 +189,12 @@ export async function authRoutes(app: FastifyInstance, opts: AuthDeps): Promise<
     const email = normalizeEmail(body.email);
     if (!email) return reply.code(400).send({ error: 'invalid_email', message: 'Enter a valid email address.' });
 
+    // F10: signup spam throttled per IP (the login limiter above stays for
+    // sign-in attempts; this one guards account creation itself).
+    if (!allowRegister(`ip:${ip}`)) {
+      return reply.code(429).send({ error: 'rate_limited', message: 'Too many signups from this network — try again later.' });
+    }
+
     if (!allowLoginAttempt(`ip:${ip}`)) {
       return reply.code(429).send({ error: 'rate_limited', message: 'Too many attempts — try again in a few minutes.' });
     }
@@ -224,6 +232,7 @@ export async function authRoutes(app: FastifyInstance, opts: AuthDeps): Promise<
         return user;
       });
       app.log.info({ userId: created.id }, 'manual account created');
+      await recordEvent(db, { type: 'signup', userId: created.id, meta: { method: 'email' } });
       const { token, expiresAt } = await createSession(db, created.id);
       setSessionCookie(reply, token, expiresAt);
       return { user: publicUser(created) };

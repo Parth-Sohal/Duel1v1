@@ -153,6 +153,31 @@ export const dailyChallenges = pgTable('daily_challenges', {
 });
 
 /**
+ * F10 basic analytics (docs/features/F10-hardening.md): append-only product
+ * events written server-side — no third-party trackers, no PII beyond ids.
+ * Powers the landing-page "duels played" counter and the owner-only counts.
+ */
+export const events = pgTable('events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  type: text('type').notNull(), // signup | match_started | submit | daily_view | feedback
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  matchId: uuid('match_id'),
+  meta: jsonb('meta').notNull().default(sql`'{}'::jsonb`), // e.g. { matchType: 'friend' | 'bot', slug } — no PII
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('events_type_created_idx').on(t.type, t.createdAt)]);
+
+/**
+ * F10 feedback (docs/features/F10-hardening.md): players send short notes; the
+ * owner reads them (DB or the owner counts endpoint). Rate-limited per user.
+ */
+export const feedback = pgTable('feedback', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  message: text('message').notNull(), // trimmed, max FEEDBACK_MAX_CHARS, enforced by the service
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * Practice submissions. Only SUBMIT is saved (RUN is ephemeral). Results
  * jsonb is redacted server-side: hidden tests show only hidden=true with
  * pass/fail — never their input or expected output.

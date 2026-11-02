@@ -1,8 +1,18 @@
 import {
+  BOT_MAX_PER_WINDOW,
+  BOT_WINDOW_MS,
+  FEEDBACK_MAX_PER_WINDOW,
+  FEEDBACK_WINDOW_MS,
   JUDGE_MAX_PER_WINDOW,
   JUDGE_WINDOW_MS,
   LOGIN_MAX_ATTEMPTS,
   LOGIN_WINDOW_MS,
+  REGISTER_MAX_PER_WINDOW,
+  REGISTER_WINDOW_MS,
+  ROOM_OPS_MAX_PER_WINDOW,
+  ROOM_OPS_WINDOW_MS,
+  SOCKET_TOKEN_MAX_PER_WINDOW,
+  SOCKET_TOKEN_WINDOW_MS,
 } from '@coding-arena/shared';
 
 /**
@@ -61,3 +71,27 @@ export function recordJudgeSubmission(userId: string): void {
   recent.push(now);
   judgeHits.set(userId, recent);
 }
+
+/**
+ * F10 launch hardening (docs/features/F10-hardening.md): one generic
+ * sliding-window limiter for every remaining throttle (signups per IP, room
+ * writes / bot duels / socket tokens / feedback per user). In-memory,
+ * single-instance — same tradeoff as the limiters above; Redis is backlog.
+ */
+function windowLimiter(max: number, windowMs: number): (key: string) => boolean {
+  const hits = new Map<string, number[]>();
+  return (key: string): boolean => {
+    const now = Date.now();
+    const recent = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
+    hits.set(key, recent);
+    if (recent.length >= max) return false;
+    recent.push(now);
+    return true;
+  };
+}
+
+export const allowRegister = windowLimiter(REGISTER_MAX_PER_WINDOW, REGISTER_WINDOW_MS);
+export const allowRoomOp = windowLimiter(ROOM_OPS_MAX_PER_WINDOW, ROOM_OPS_WINDOW_MS);
+export const allowBotDuel = windowLimiter(BOT_MAX_PER_WINDOW, BOT_WINDOW_MS);
+export const allowSocketToken = windowLimiter(SOCKET_TOKEN_MAX_PER_WINDOW, SOCKET_TOKEN_WINDOW_MS);
+export const allowFeedback = windowLimiter(FEEDBACK_MAX_PER_WINDOW, FEEDBACK_WINDOW_MS);

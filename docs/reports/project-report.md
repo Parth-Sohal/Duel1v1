@@ -52,8 +52,7 @@ One living report for the whole project. Update it at the end of every iteration
 | 1 | Accounts | F1 login, F2 profile, F2b avatar upload, F3 email login | **Done** (2026-10-28) |
 | 2 | Practice mode | F3 challenges, editor, run code | **Done** (2026-10-29) |
 | 3 | Friend duels | F4 rooms, F5 match engine, F6 history | **Done** (2026-10-30, owner-reviewed) |
-| 4 | Soft launch | F7 bot + daily challenge, F8 hardening | In progress |
-| 4 | Soft launch | F7 bot and daily challenge, F8 launch hardening | Not started |
+| 4 | Soft launch | F7 bot + daily challenge, F8 hardening | **Done** (2026-10-30, owner-reviewed in part) |
 | 5 | Growth | F9 matchmaking, F10 AI analysis, F11 UI polish, F12 C++ and Java | Not started |
 
 ## 5. Iteration reports
@@ -285,6 +284,65 @@ Status: passed (owner-reviewed 2026-10-30; review fixes shipped: defeat-overlay 
 - Rematch CTA wiring (new room, same players — button renders, action parks with matchmaking)
 - Redis-backed rate limiting and presence when scaling past one server instance
 - Best-of-three rounds (design shows it; v1 = single duel per room)
+
+### Iteration 4 - Soft launch (bot, daily challenge, hardening)
+
+Branches: `feature/F08-kern-bot`, `feature/F09-daily-challenge`, `feature/F09-streak-bar`, `feature/F10-hardening` (`docs/features/F0{8,9}-*.md`, `F10-hardening.md`)
+Status: passed (bot + daily + streak owner-reviewed 2026-10-30; hardening matrix 30/30; restore rehearsal = owner action)
+
+#### What was built
+- **KERN BOT (F08):** one-click `POST /api/duels/bot` seats the house bot across from a lone player; the bot's brain (solve or fail, and when) is decided ONCE at match start and stored on the match row (`bot_will_solve`, `bot_solve_at` — migration 0011), executed by the sweeper — restart-safe, no timers to lose. The bot never creates submissions or touches Judge0 (zero leak surface). D6: no points, no stats; history labeled "vs KERN". A partial unique index (`users_is_bot_single`, migration 0012) makes the bot-user race impossible; a race found during gating did create 3 KERN rows once — deduped to exactly 1 and the index guarantees it stays 1.
+- **Daily challenge (F09):** one published challenge per UTC day for the whole arena — deterministic date-seeded pick (FNV-1a over `day:salt`, `DAILY_SALT` env) into the slug-ordered pool, cached in `daily_challenges` (migration 0013) on first request so a restart can never change today's pick; no repeats while the pool has fresh entries. `GET /api/daily` is viewable signed-out (solving still goes through the authed practice flow). `/daily` page with countdown, Header entry, pinned card on the practice page.
+- **Streak bar (owner request):** bottom of `/daily` — the last 14 days, orange = that day's daily solved (accepted submits only), current + longest streak; a not-yet-solved today never breaks the run; signed-out sees `streaks: null`.
+- **Hardening (F10):** migration 0014 (`events` + `feedback` tables); one generic sliding-window limiter powering five new throttles (register 3/IP/hour, room ops 10/user/min, bot duels 3/user/min, socket tokens 6/user/min, feedback 3 accepted/10 min); append-only analytics events (signup / match_started / submit / daily_view / feedback — ids + coarse facts, no PII, fire-and-forget so they can never break gameplay); owner-only `GET /api/events/counts` + `GET /api/feedback` (OWNER_EMAILS guard, email looked up from the DB); public `GET /api/stats/public` (real duels-played counter, no fake numbers); brutalist landing page for signed-out visitors (hero, PLAY, three doors, live counter) + `/terms` + `/privacy`; profile-page feedback form (500-char cap, rejected drafts don't burn the budget); env-gated Sentry in both apps (no DSN → SDK never even loads); structured pino logs now carry `matchId`/`userId`/`submissionId` at every touchpoint; backup/restore runbook (`docs/ops/backup-restore.md`, Neon PITR — 6 h window on the free plan).
+
+#### Test results
+
+| Area | Test | Result | Notes |
+|---|---|---|---|
+| Bot | Duel vs KERN end to end | 29/29 pass | `f08-bot-test.ts` (lone player full duel, win + loss paths, D6 zero deltas, restart-safety, single KERN row) |
+| Daily | Daily pick + solve round-trip | 21/21 pass | `f09-daily-test.ts` (same challenge for everyone, deterministic, no-repeat, solved state, streaks null signed-out) |
+| Streak | Streak bar | (in 28/28) pass | Simulated 3-day run: current = 3, max = 3, cells correct; rival stays 0 |
+| Pool | Challenge verification | 8/8 pass | `challenge-verify.ts` via real Judge0 (both languages where seeded) |
+| Hardening | F10 matrix | 30/30 pass | `f10-hardening-test.ts` (all five limits burst-tested concurrently with exact allowed/429 splits; events recorded; owner guards 403/401; feedback validation + cap + reading list; landing/terms/privacy 200 signed-out; secrets-in-git audit) |
+| Build | Server tsc, lint, web build | pass | Web build green after removing `sendDefaultPii` (not in the Sentry SDK types; PII off by default anyway) |
+
+#### Issues found
+| # | Issue | Severity | Fixed | Notes |
+|---|---|---|---|---|
+| 1 | Bot-user race could create 3 KERN rows (concurrent first bot duels) | high | yes | Partial unique index `users_is_bot_single` + insert-`onConflictDoNothing`-then-reread; DB deduped |
+| 2 | Re-seeding challenges deleted + re-inserted rows, cascading real player submissions away | high | yes | Seed loader now SKIPS slugs already in the DB; definitions extracted to `scripts/seed-data.ts` |
+| 3 | Feedback limiter ran before validation — an empty/overlong draft burned the 3-per-10-min budget | low | yes | Validation moved first; matrix asserts 3 ACCEPTED notes still go through after two rejected drafts |
+| 4 | F10 matrix's sequential room-op spam slid out of the 60 s window under Neon latency (~3.5 s/request) and never reached 10-in-a-minute | low | yes | Burst assertions made concurrent (all requests land inside one window; models real abuse better anyway) |
+| 5 | `sendDefaultPii: false` broke both Sentry inits (not in the SDK's option union) | low | yes | Removed from both inits; PII is off by default and nothing extra is attached |
+
+#### Security and fairness checks
+- [x] Server is the referee — bot plans live on the match row and execute server-side; the bot never calls Judge0 or creates submissions
+- [x] Hidden tests stay sealed — daily/practice/bot flows re-verified through the standard practice submit
+- [x] Rate limits on every abuse surface — signups (per IP), room writes, bot duels, socket tokens, feedback, judge calls, logins
+- [x] No PII in analytics or errors — events carry ids + coarse facts; Sentry attaches nothing extra; no third-party trackers, no ad networks, no tracking pixels
+- [x] No secrets in git — gate asserts `.env` files ignored and only `.env.example` tracked; new vars documented
+- [x] Owner-only surfaces — counts and feedback list 403 non-owners, 401 signed-out (verified)
+
+#### Works on
+- [x] Lone new user → bot duel → history "vs KERN", zero points moved (owner visual check: "ya ok working")
+- [x] Daily page + streak bar live review by owner (owner solved the day's real challenge)
+- [x] Landing / terms / privacy reachable signed-out (matrix)
+- [ ] Owner's final "comfortable sending to strangers" sign-off + the Neon restore rehearsal (~10 min, touches no prod data)
+
+#### Changes to plan or architecture
+- **F09 pick rule:** deterministic date-seeded selection cached on first request (no server restart or clock skew can change a day's pick); salt is env-only (`DAILY_SALT`)
+- **F08 architecture:** bot decided-once + sweeper-executed (DB-resident) instead of in-memory timers
+- **F10 owner guard:** `UserPublic` still has no email; owner endpoints look the email up server-side against `OWNER_EMAILS`
+- 30–50 challenge pool gate stays open pending the owner's authoring (tooling shipped, 8/8 green)
+
+#### Decision: go to the next iteration?
+**Yes, pending two owner actions** — the soft-launch milestone is functionally complete; the owner runs the Neon restore rehearsal and gives the final strangers-ready sign-off. Iteration 5 then starts from real feedback.
+
+#### Carried to backlog
+- Redis-backed limiters (multi-instance), status page, third-party analytics (deliberately none in v1)
+- Challenge pool 30–50 (owner-authored, verify tooling ready)
+- Random matchmaking + leaderboard (iteration 5), AI code analysis (iteration 5)
 
 ## 6. Risk register
 
