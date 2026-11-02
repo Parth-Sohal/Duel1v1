@@ -188,9 +188,10 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 - [x] A lone new user can play a full duel against the bot
 - [x] Bot sometimes wins and sometimes loses; points follow decision D6
 - [x] Daily challenge changes each day
-- [ ] All 30 to 50 challenges pass with their reference solutions (tooling
-      shipped: `challenge-verify.ts` — 8/8 of the current pool green; the
-      count gate closes when the owner's 30–50 are authored + published)
+- [x] All 30 to 50 challenges pass with their reference solutions (tooling
+      shipped: `challenge-verify.ts` — **closed 2026-11-02 at 40/40**: the
+      launch eight plus 32 new challenges (12 easy / 12 medium / 8 hard)
+      frozen through real Judge0, owner-reviewed, published)
 - [x] Spam of submits, rooms, and signups is throttled
       (`f10-hardening-test.ts` 30/30: register 3/IP/h, room ops 10/user/min,
       bot 3/user/min, socket tokens 6/user/min, feedback 3 accepted/10 min)
@@ -262,6 +263,8 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 | 2026-10-30 | 4 (F10) | Build + test passed | Hardening: migration 0014 (`events` + `feedback`), one generic sliding-window limiter (register 3/IP/h, room ops 10/user/min, bot 3/user/min, socket tokens 6/user/min, feedback 3 accepted/10 min), owner-only counts + feedback list (OWNER_EMAILS), public real duels-played counter, brutalist landing + terms + privacy, profile feedback form (500 chars, drafts don't burn budget), env-gated Sentry (both apps, SDK not even loaded without a DSN), structured logs with match/user/submission ids, backup runbook `docs/ops/backup-restore.md`; burst assertions in the matrix (sequential slow requests slide out of a 60 s window); matrix 30/30; restore rehearsal = owner action in Neon console |
 | 2026-11-02 | 4 (F10) | Deployed + owner rehearsed restore | Push `3136925` live on Render + Vercel (F10 endpoints + pages verified in prod); owner set `OWNER_EMAILS` on Render (service restarted); owner rehearsed the Neon PITR restore (copy branch, counts verified, branch deleted) — backup gate closed |
 | 2026-11-02 | 4 | **Iteration complete** | Owner's final strangers-ready pass: signed-out landing/terms/privacy/daily, feedback form round-trip (read back as owner), live bot duel moved the real duels-played counter 0 → 1; iteration 4 closed — soft launch to friends/college can start |
+| 2026-11-02 | 4 (F09) | Pool expanded 8 → 40 | 32 new challenges (12 easy / 12 medium / 8 hard) frozen through real Judge0 (JS + Python byte-agree on all 160 tests), inserted UNPUBLISHED, owner reviewed the generated review doc and signed off, published; `challenge-verify.ts` gate 40/40. First freeze run FAILED correctly — 12 JS references contained TypeScript-only syntax the judge can't run; stripped and re-frozen clean |
+| 2026-11-02 | 4 (UI) | Practice roster restyled | Owner mockup applied to /practice: progress pill, difficulty filter tabs with real counts, colored difficulty labels, today's-daily card with tags + arrow, [J/K] + [Enter] keyboard navigation, stat units + divider on the cream half; web lint + build green |
 
 ## 7. Backlog (parked, not in v1)
 

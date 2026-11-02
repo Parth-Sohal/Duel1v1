@@ -1,6 +1,7 @@
 # F09 — Daily challenge (+ growing the pool to 30–50)
 
-Status: built + gated (2026-10-30, test matrix 28/28 + pool verify 8/8)
+Status: built + gated (2026-10-30, test matrix 28/28; pool grown to 40
+published on 2026-11-02 — verify 40/40)
 Branch: feature/F09-daily-challenge
 Depends on: F04 (challenges + judging)
 PLAN reference: Iteration 4, "Daily challenge; grow to 30 to 50 hand-checked challenges"
@@ -45,19 +46,26 @@ state are the F04 systems exactly. The daily page itself only adds the banner
 
 - Seed format unchanged (`challenges` + immutable `challenge_versions` with
   `entry_functions` jsonb, tests jsonb, reference solution per language).
-- Target: 30–50 published challenges (8 today). The owner authors/hand-checks;
-  I keep the seed loader and the verify script. The verify script is the gate —
-  every version's reference solution must pass all tests via the real judge
-  before it counts.
+- Target: 30–50 published challenges. **Done 2026-11-02: 40 published** (the
+  launch eight + 32 new: 12 easy / 12 medium / 8 hard in
+  `scripts/seed-data-pool2.ts`). Expected answers are computed by the freeze —
+  both language references must agree byte-for-byte through the real judge —
+  and new slugs insert UNPUBLISHED until the owner signs off (done via the
+  generated review doc `docs/reports/challenge-pool2-review.md`, rendered from
+  the DB). The verify script remains the gate — every version's reference
+  solution must pass all tests via the real judge to count.
 
 ## Test checklist
 
 Evidence: `apps/server/scripts/f09-daily-test.ts` — 28/28 against the local
 server + shared Neon DB (2026-10-30); pool gate
-`scripts/challenge-verify.ts` — 8/8 published versions verified through the
-real Judge0. Note: the seed loader (`f04-seed-challenges.ts`) now SKIPS slugs
-already in the DB — published challenges carry real player submissions and
-re-running the old delete-and-reinsert would have cascaded them away.
+`scripts/challenge-verify.ts` — **40/40 published versions verified through
+the real Judge0 (2026-11-02)**. Note: the seed loader (`f04-seed-challenges.ts`)
+now SKIPS slugs already in the DB — published challenges carry real player
+submissions and re-running the old delete-and-reinsert would have cascaded
+them away. The first pool-2 freeze run failed correctly: 12 JavaScript
+references contained TypeScript-only syntax the judge can't run — stripped,
+re-frozen clean.
 
 ## Streak bar (owner request, 2026-10-30)
 

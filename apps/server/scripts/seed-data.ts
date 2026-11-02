@@ -9,7 +9,7 @@ export type SeedTest = { args: unknown[]; hidden: boolean };
 export type SeedChallenge = {
   slug: string;
   title: string;
-  difficulty: 'easy' | 'medium';
+  difficulty: 'easy' | 'medium' | 'hard';
   tags: string[];
   entryFunctions: { javascript: string; python: string };
   statement: string;
@@ -18,7 +18,10 @@ export type SeedChallenge = {
   tests: SeedTest[];
 };
 
-export const CHALLENGES: SeedChallenge[] = [
+import { POOL2 } from './seed-data-pool2.js';
+
+/** Batch 1: the owner-signed-off launch eight (F04). */
+const BATCH1: SeedChallenge[] = [
   {
     slug: 'pair-target-sum',
     title: 'Pair Target Sum',
@@ -429,3 +432,6 @@ The missing integer.`,
     ],
   },
 ];
+
+/** The full pool: batch 1 (launch eight) + batch 2 (the 30-50 pool expansion). */
+export const CHALLENGES: SeedChallenge[] = [...BATCH1, ...POOL2];
