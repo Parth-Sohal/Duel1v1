@@ -2,76 +2,9 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { SplitShell } from '../../../components/SplitShell';
 import { CodePanel, SampleTests } from '../../../components/CodePanel';
-import { EngineLatency } from '../../../components/EngineLatency';
-import { Eyebrow, Headline } from '../../../components/ui';
+import { Chip, Eyebrow, Headline } from '../../../components/ui';
 import { getCurrentUser } from '../../../lib/session';
 import { getChallengeDetail, type ChallengeDetail } from '../../../lib/practice';
-
-const DIFF_TEXT: Record<ChallengeDetail['difficulty'], string> = {
-  easy: 'text-easy',
-  medium: 'text-accent',
-  hard: 'text-hard',
-};
-
-/** Taxonomy badge with the difficulty's color square (cream-side readable). */
-function DifficultyChip({ difficulty }: { difficulty: ChallengeDetail['difficulty'] }) {
-  return (
-    <span className="flex items-center gap-2 border border-line-light bg-sand/80 px-2.5 py-1 font-mono text-xs font-medium tracking-[0.05em] text-carbon">
-      <span aria-hidden className={`inline-block h-2 w-2 bg-current ${DIFF_TEXT[difficulty]}`} />
-      {difficulty}
-    </span>
-  );
-}
-
-/**
- * Statement renderer: the first block is the function signature (mono box),
- * PARAMETERS / RETURNS blocks become labeled sections, anything else is body
- * copy. Works off the raw statement text — same content, structured layout.
- */
-function StatementBody({ text }: { text: string }) {
-  const blocks = text.trim().split(/\n{2,}/);
-  return (
-    <div className="space-y-5">
-      {blocks.map((block, i) => {
-        const header = block.split('\n')[0].trim();
-        if (i === 0) {
-          return (
-            <pre
-              key={i}
-              className="overflow-x-auto border border-line-light bg-sand/60 px-3 py-2 font-mono text-sm font-bold text-carbon"
-            >
-              {block}
-            </pre>
-          );
-        }
-        if (header === 'PARAMETERS' || header === 'RETURNS') {
-          const items = block
-            .split('\n')
-            .slice(1)
-            .map((line) => line.trim())
-            .filter(Boolean);
-          return (
-            <div key={i}>
-              <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-[0.1em] text-muted">{header}</p>
-              <ul className="space-y-1.5">
-                {items.map((item, j) => (
-                  <li key={j} className="font-grotesk text-sm leading-relaxed text-carbon">
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        }
-        return (
-          <p key={i} className="font-grotesk text-sm leading-relaxed text-carbon">
-            {block}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
 
 /** Designed not-found (unknown slug or unpublished challenge). */
 function NotFound() {
@@ -140,15 +73,6 @@ export default async function ChallengePage({ params }: { params: Promise<{ slug
 function ChallengeView({ challenge }: { challenge: ChallengeDetail }) {
   return (
     <SplitShell
-      resizable
-      tickerExtra={
-        <>
-          <EngineLatency />
-          <span className="hidden font-mono text-xs tracking-[0.05em] text-neutral-500 lg:inline">
-            [CTRL] + [ENTER] SUBMIT
-          </span>
-        </>
-      }
       left={
         <>
           <div className="mb-4 flex items-center justify-between gap-4">
@@ -162,15 +86,17 @@ function ChallengeView({ challenge }: { challenge: ChallengeDetail }) {
           </div>
           <Headline className="mb-5 text-[clamp(2.25rem,5vw,4rem)]">{challenge.title}</Headline>
           <div className="mb-6 flex flex-wrap items-center gap-2">
-            <DifficultyChip difficulty={challenge.difficulty} />
+            <Chip>{challenge.difficulty}</Chip>
             {challenge.tags.map((tag: string) => (
-              <span key={tag} className="border border-line-light bg-sand/80 px-2.5 py-1 font-mono text-xs font-medium tracking-[0.05em] text-muted">
+              <span key={tag} className="font-mono text-xs text-muted">
                 {tag}
               </span>
             ))}
             <span className="font-mono text-xs text-muted">· version {challenge.version}</span>
           </div>
-          <StatementBody text={challenge.statement} />
+          <p className="whitespace-pre-wrap font-grotesk text-sm leading-relaxed text-carbon">
+            {challenge.statement}
+          </p>
           <SampleTests tests={challenge.visibleTests} entryFunction={challenge.entryFunctions.javascript} />
         </>
       }
