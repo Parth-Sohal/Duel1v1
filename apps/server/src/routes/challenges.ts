@@ -15,6 +15,7 @@ import { allowJudgeSubmission } from '../services/rate-limit.js';
 import { dailyPayload } from '../services/daily.js';
 import { SESSION_COOKIE } from '@coding-arena/shared';
 import { resolveSession } from '../services/sessions.js';
+import { recordEvent } from '../services/events.js';
 
 type ChallengeDeps = {
   db: Database;
@@ -150,9 +151,10 @@ export async function challengeRoutes(app: FastifyInstance, opts: ChallengeDeps)
       judgeLatencyMs: latencyMs,
     });
     app.log.info(
-      { userId: request.user!.id, slug, status: agg.status, passed: results.filter((r) => r.pass).length, total: results.length },
+      { userId: request.user!.id, submissionId: saved.id, slug, status: agg.status, passed: results.filter((r) => r.pass).length, total: results.length },
       'practice submission judged',
     );
+    await recordEvent(db, { type: 'submit', userId: request.user!.id, meta: { context: 'practice', slug, status: agg.status } });
     return { submissionId: saved.id, status: agg.status, passed: results.filter((r) => r.pass).length, total: results.length, results: redacted };
   });
 
@@ -171,10 +173,16 @@ export async function challengeRoutes(app: FastifyInstance, opts: ChallengeDeps)
 
   /** GET /daily — today's challenge for EVERYONE (F09). Viewable signed-out
    * (session resolved opportunistically, never 401s); solving still goes
-   * through the authed practice flow (/practice/:slug). */
+   * through the authed practice flow (/practice/:slug). F10: the view is a
+   * fire-and-forget analytics event (only when a player is signed in —
+   * anonymous page loads stay untracked). */
   app.get('/daily', async (request) => {
     const token = request.cookies[SESSION_COOKIE];
     const session = token ? await resolveSession(db, token) : null;
-    return dailyPayload(db, session?.user.id ?? null);
+    const payload = await dailyPayload(db, session?.user.id ?? null);
+    if (session) {
+      await recordEvent(db, { type: 'daily_view', userId: session.user.id, meta: { slug: payload.challenge?.slug ?? null } });
+    }
+    return payload;
   });
 }

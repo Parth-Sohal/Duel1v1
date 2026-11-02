@@ -4,6 +4,7 @@ import { Avatar } from '../../components/Avatar';
 import { AvatarEditor } from '../../components/AvatarEditor';
 import { ProfileName } from '../../components/ProfileName';
 import { MatchHistory } from '../../components/MatchHistory';
+import { FeedbackForm } from '../../components/FeedbackForm';
 import { Eyebrow, RadarSkeleton, Stat } from '../../components/ui';
 import { getCurrentUser } from '../../lib/session';
 
@@ -55,6 +56,14 @@ export default async function ProfilePage() {
               </p>
             </div>
           </div>
+
+          {/* F10: the owner reads every note (rate-limited, 500 chars max). */}
+          <div className="mt-10 max-w-md border-t border-line-light/80 pt-6">
+            <span className="mb-4 block font-mono text-xs font-semibold uppercase tracking-[0.1em] text-muted">
+              Feedback
+            </span>
+            <FeedbackForm />
+          </div>
         </>
       }
       right={
@@ -68,7 +77,6 @@ export default async function ProfilePage() {
         </div>
       }
       leftFooter={`Joined ${new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · Skill map updates after every duel.`}
-      rightFooter="Rating changes only when the match ends."
-    />
+      rightFooter="Rating changes only when the match ends."    />
   );
 }

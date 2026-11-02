@@ -34,4 +34,11 @@ export const env = {
    */
   judge0Url: process.env.JUDGE0_API_URL ?? 'https://ce.judge0.com',
   judge0ApiKey: process.env.JUDGE0_API_KEY ?? '',
+  /** F10: comma-separated owner emails who may read analytics counts. */
+  ownerEmails: (process.env.OWNER_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+  /** F10: Sentry DSNs — absent = error tracking off, app runs exactly as before. */
+  sentryDsn: process.env.SENTRY_DSN ?? '',
 } as const;

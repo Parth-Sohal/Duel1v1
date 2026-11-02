@@ -11,10 +11,13 @@ import { meRoutes } from './routes/me.js';
 import { challengeRoutes } from './routes/challenges.js';
 import { duelRoutes } from './routes/duels.js';
 import { matchRoutes } from './routes/matches.js';
+import { feedbackRoutes } from './routes/feedback.js';
+import { eventRoutes } from './routes/events.js';
 import { setupGateway } from './services/gateway.js';
 import { sweepMatches } from './services/matches.js';
 import { closeExpiredRooms } from './services/rooms.js';
 import { ensureBotUser, runBotTick } from './services/bots.js';
+import { captureError, initObservability } from './services/observability.js';
 import { eq, sql } from 'drizzle-orm';
 import { challengeVersions, matches } from './db/schema.js';
 
@@ -23,7 +26,15 @@ const SWEEP_INTERVAL_MS = 5000;
 
 async function main(): Promise<void> {
   const app = Fastify({
-    logger: true, // structured logs (pino); match/user ids added per-service later
+    logger: true, // structured pino logs; ids added at every match/user/submission touchpoint (F10)
+  });
+
+  // F10: Sentry is a no-op without SENTRY_DSN (the SDK is not even loaded).
+  await initObservability();
+  // Route errors ship to Sentry (when enabled) with the request id — the
+  // default Fastify error handler still produces the responses.
+  app.addHook('onError', async (request, _reply, error) => {
+    captureError(error, { reqId: request.id, method: request.method, url: request.url, userId: request.user?.id ?? null });
   });
 
   const { db, pool } = createDb(env.databaseUrl);
@@ -63,6 +74,9 @@ async function main(): Promise<void> {
   await app.register(duelRoutes, { db, prefix: '/api' });
   // F06/F07 matches: /api/matches*.
   await app.register(matchRoutes, { db, prefix: '/api' });
+  // F10 feedback + analytics.
+  await app.register(feedbackRoutes, { db, prefix: '/api' });
+  await app.register(eventRoutes, { db, prefix: '/api' });
 
   // Socket.IO shares Fastify's HTTP server; engine.io only handles its own
   // /socket.io paths (polling + websocket upgrades), other requests stay with Fastify.
@@ -114,6 +128,7 @@ async function main(): Promise<void> {
       }
     } catch (err) {
       app.log.error({ err }, 'sweeper pass failed');
+      captureError(err, { scope: 'sweeper' });
     }
   };
   await sweep();
