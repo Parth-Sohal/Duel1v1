@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { LANGUAGES, MAX_CODE_LENGTH, type Language } from '@coding-arena/shared';
 import type { ChallengeDetail, VisibleTest } from '../lib/practice';
 
@@ -31,6 +31,48 @@ type RunOutcome = {
 };
 
 const LANGUAGE_LABELS: Record<Language, string> = { javascript: 'JS', python: 'PY' };
+
+/**
+ * Tiny tokenizer for the editor's highlight underlay (owner workbench mockup):
+ * keywords in accent, strings green, comments muted. Cosmetic only — the
+ * textarea on top holds the real code; a broken highlight can never change it.
+ */
+const KEYWORDS: Record<Language, string> = {
+  javascript:
+    'function|return|const|let|var|if|else|for|while|of|in|new|class|true|false|null|undefined|typeof|break|continue|do|switch|case|default|throw|try|catch',
+  python:
+    'def|return|if|elif|else|for|while|in|not|and|or|True|False|None|import|from|class|pass|break|continue|lambda|with|as|is|raise|try|except|finally',
+};
+
+function highlightCode(code: string, lang: Language): ReactNode[] {
+  const comment = lang === 'javascript' ? '\\/\\/[^\\n]*' : '#[^\\n]*';
+  const re = new RegExp(
+    `(${comment})|(\`(?:[^\`\\\\]|\\\\.)*\`|"(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*')|\\b(${KEYWORDS[lang]})\\b|\\b(\\d+(?:\\.\\d+)?)\\b`,
+    'g',
+  );
+  const nodes: ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(code)) !== null) {
+    if (m.index > last) nodes.push(code.slice(last, m.index));
+    const [full, commentHit, stringHit, keywordHit, numberHit] = m;
+    const cls = commentHit
+      ? 'text-neutral-500 italic'
+      : stringHit
+        ? 'text-easy'
+        : keywordHit
+          ? 'font-semibold text-accent'
+          : numberHit
+            ? 'text-neutral-300'
+            : '';
+    nodes.push(<span key={key++} className={cls}>{full}</span>);
+    last = m.index + full.length;
+    if (full.length === 0) re.lastIndex += 1;
+  }
+  if (last < code.length) nodes.push(code.slice(last));
+  return nodes;
+}
 
 /** The match-finish payload the duel submit endpoint may include. */
 export type MatchOutcome = {
@@ -71,8 +113,12 @@ export function CodePanel({
     python: challenge.starterCode.python,
   }));
   const [outcome, setOutcome] = useState<RunOutcome | null>(null);
+  const [outcomeLang, setOutcomeLang] = useState<Language>('javascript');
   const [busy, setBusy] = useState<null | 'run' | 'submit'>(null);
   const [error, setError] = useState<string | null>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
+  const [gutterScroll, setGutterScroll] = useState(0);
+  const lineCount = Math.max(1, code[language].split('\n').length);
 
   const source = code[language];
   const overLimit = source.length > MAX_CODE_LENGTH;
@@ -106,6 +152,7 @@ export function CodePanel({
           setError('The judge refused this request. Check your code and try again.');
         } else if (data) {
           setOutcome(data);
+          setOutcomeLang(language);
           onOutcome?.(data);
         }
       } catch {
@@ -118,6 +165,12 @@ export function CodePanel({
   );
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Ctrl/Cmd+Enter submits from inside the editor (no mouse needed).
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (!locked && busy === null && !overLimit && source.trim().length > 0) judge('submit');
+      return;
+    }
     if (e.key !== 'Tab') return;
     e.preventDefault();
     const el = e.currentTarget;
@@ -180,14 +233,45 @@ export function CodePanel({
         </div>
       </div>
 
-      <div className="border border-line-dark bg-surface">
+      <div className="relative border border-line-dark bg-surface">
+        {/* faint house watermark (mockup) */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute bottom-4 right-5 z-10 select-none font-mono text-2xl font-bold text-cream/[0.05]"
+        >
+          {'{duel}'}
+        </span>
+        {/* line-number gutter — translates with the editor scroll */}
+        <div aria-hidden className="absolute bottom-0 left-0 top-0 z-10 w-10 overflow-hidden border-r border-line-dark bg-surface">
+          <pre
+            className="px-2 pt-4 text-right font-mono text-sm leading-relaxed text-neutral-600"
+            style={{ transform: `translateY(-${gutterScroll}px)` }}
+          >
+            {Array.from({ length: lineCount }, (_, i) => i + 1).join('\n')}
+          </pre>
+        </div>
+        {/* highlight underlay — the textarea above renders its own text transparent */}
+        <pre
+          ref={highlightRef}
+          aria-hidden
+          className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words py-4 pl-14 pr-4 font-mono text-sm leading-relaxed text-cream"
+        >
+          {highlightCode(source, language)}
+        </pre>
         <textarea
           value={source}
           onChange={(e) => setCode((c) => ({ ...c, [language]: e.target.value }))}
           onKeyDown={onKeyDown}
+          onScroll={(e) => {
+            if (highlightRef.current) highlightRef.current.scrollTop = e.currentTarget.scrollTop;
+            setGutterScroll(e.currentTarget.scrollTop);
+          }}
           spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
           aria-label={`Code editor — ${language}`}
-          className="block h-72 w-full resize-y bg-transparent p-4 font-mono text-sm leading-relaxed text-cream outline-none sm:h-80"
+          style={{ caretColor: '#ff4d15' }}
+          className="relative block h-96 w-full resize-y bg-transparent py-4 pl-14 pr-4 font-mono text-sm leading-relaxed text-transparent outline-none selection:bg-accent/30 sm:h-[28rem]"
         />
       </div>
 
@@ -223,9 +307,22 @@ export function CodePanel({
       {banner}
 
       {outcome && outcome.results.length > 0 && (
-        <div className="mt-3 border border-line-dark">
+        <div className="mt-3 border border-line-dark bg-surface">
+          <div className="flex items-center justify-between gap-3 border-b border-line-dark px-4 py-2.5">
+            <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-300">
+              <span aria-hidden className="inline-block h-1.5 w-1.5 bg-accent" />
+              {outcome.status === 'accepted' || outcome.status === 'wrong_answer' ? 'Results' : 'Sample results'}
+            </p>
+            <span
+              className={`font-mono text-[11px] font-bold uppercase tracking-[0.1em] ${
+                outcome.passed === outcome.total ? 'text-accent' : 'text-neutral-400'
+              }`}
+            >
+              {outcome.passed}/{outcome.total} passed
+            </span>
+          </div>
           {outcome.results.map((r) => (
-            <TestRow key={r.index} result={r} />
+            <TestRow key={r.index} result={r} entryFunction={challenge.entryFunctions[outcomeLang]} />
           ))}
         </div>
       )}
@@ -233,32 +330,41 @@ export function CodePanel({
   );
 }
 
-/** One test row: visible tests show args/expected/your return; hidden tests show pass/fail only. */
-function TestRow({ result }: { result: TestResult }) {
+/** One test row: visible tests show the call + expected inline and expand to
+ * the full IO docks; hidden tests show pass/fail only (sealed inputs). */
+function TestRow({ result, entryFunction }: { result: TestResult; entryFunction: string }) {
   const [open, setOpen] = useState(false);
-  const passColor = result.pass ? 'text-accent' : 'text-neutral-400';
   return (
     <div className="border-b border-line-dark last:border-b-0">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left font-mono text-xs"
+        className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left font-mono text-xs"
       >
-        <span className="flex items-center gap-3">
-          <span className={`font-bold uppercase tracking-[0.1em] ${passColor}`}>
-            {result.pass ? 'Pass' : 'Fail'}
+        <span className="flex min-w-0 items-center gap-3">
+          <span aria-hidden className={result.pass ? 'font-bold text-accent' : 'text-neutral-500'}>
+            {result.pass ? '✓' : '✗'}
           </span>
-          <span className="uppercase tracking-[0.1em] text-neutral-300">
-            {result.hidden ? 'Hidden test' : `Test ${result.index + 1}`}
+          <span className="flex-shrink-0 uppercase tracking-[0.1em] text-neutral-300">
+            {result.hidden ? 'Hidden test' : `Test #${result.index + 1}`}
           </span>
-          <span className="text-neutral-500">{STATUS_LABELS[result.status] ?? result.status}</span>
+          {!result.hidden && (
+            <span className="min-w-0 truncate text-neutral-500">
+              {entryFunction}({result.args ?? ''}) == {result.expected ?? ''}
+            </span>
+          )}
+          {result.hidden && (
+            <span className="text-neutral-500">{STATUS_LABELS[result.status] ?? result.status}</span>
+          )}
         </span>
-        {!result.hidden && (
-          <span aria-hidden className="text-neutral-500">
-            {open ? '−' : '+'}
-          </span>
-        )}
+        <span
+          className={`flex-shrink-0 font-bold uppercase tracking-[0.1em] ${
+            result.pass ? 'text-accent' : 'text-neutral-400'
+          }`}
+        >
+          {result.pass ? 'Passed' : 'Failed'}
+        </span>
       </button>
       {open && !result.hidden && (
         <TestDetail result={result} />
@@ -301,34 +407,43 @@ function IODock({ label, value, tone = 'default' }: { label: string; value: stri
   );
 }
 
-/** Sample tests shown on the cream half (statement side): the call arguments and the frozen answer. */
+/** Sample tests shown on the cream half (statement side): a bordered table of
+ * the call arguments and the frozen answer (owner workbench mockup). */
 export function SampleTests({ tests, entryFunction }: { tests: VisibleTest[]; entryFunction: string }) {
   return (
     <div className="mt-8">
       <p className="mb-3 font-mono text-xs font-semibold uppercase tracking-[0.1em] text-muted">
         Sample tests {entryFunction && <span className="normal-case tracking-[0.05em]">— {entryFunction}(…)</span>}
       </p>
-      <div className="space-y-3">
-        {tests.map((t, i) => (
-          <div key={i} className="grid gap-3 border border-line-light bg-sand/60 p-4 sm:grid-cols-2">
-            <div>
-              <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
-                Arguments {tests.length > 1 ? i + 1 : ''}
-              </p>
-              <pre className="overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-carbon">
-                {JSON.stringify(t.args)}
-              </pre>
-            </div>
-            <div>
-              <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
+      <div className="overflow-x-auto border border-line-light">
+        <table className="w-full table-fixed border-collapse text-left">
+          <thead>
+            <tr className="border-b border-line-light bg-sand/60">
+              <th scope="col" className="w-1/2 px-4 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
+                Arguments
+              </th>
+              <th scope="col" className="w-1/2 px-4 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
                 Expected
-              </p>
-              <pre className="overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-carbon">
-                {t.expected}
-              </pre>
-            </div>
-          </div>
-        ))}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {tests.map((t, i) => (
+              <tr key={i} className="border-b border-line-light align-top last:border-b-0">
+                <td className="px-4 py-2.5">
+                  <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-carbon">
+                    {JSON.stringify(t.args)}
+                  </pre>
+                </td>
+                <td className="px-4 py-2.5">
+                  <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-carbon">
+                    {t.expected}
+                  </pre>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
