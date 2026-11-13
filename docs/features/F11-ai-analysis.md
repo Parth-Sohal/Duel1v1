@@ -71,8 +71,13 @@ System prompt, fixed server-side:
   "suggestions": ["max 3 quality/readability/perf notes"] }
 ```
 
-Model default `gemini-2.0-flash` (env `AI_MODEL`), temperature 0.3, max output tokens
-bounded. Response size capped; a malformed response falls back to a safe generic review.
+Model default `gemini-3.5-flash` (env `AI_MODEL`). Model churn is real: the
+original `gemini-2.0-flash` was retired upstream, then `gemini-2.5-flash` was
+pulled for new users, and `gemini-3.8-flash` sat behind 503 high-demand during
+the 2026-11-13 gate run — `scripts/probe-models.ts` exists to re-probe quickly
+when Google shuffles availability again. Temperature 0.3, max output tokens
+bounded. Response size capped; a malformed response falls back to a safe
+generic review.
 
 ## Storage
 

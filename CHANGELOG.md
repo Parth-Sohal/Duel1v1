@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-11-13] F11 AI code analysis (iteration 5)
+- Added: **AI code review** — `POST /api/ai/review` analyzes a player's own practice code with Google Gemini: verdict, up to 3 hints (never a working solution), time/space complexity, quality suggestions; correct code is reviewed too (owner decision). Opt-in only — nothing is sent unless the player clicks Analyze
+- Added: `ai_reviews` table (migration 0015) — the **3-per-player-per-day cap is durable** (row-counted per UTC day, survives restarts); 429 `daily_cap_reached` after 3, 413 for code over 20 000 chars before the provider ever sees it, 403 on duel reviews of someone else's submission, in-memory burst limiter on top
+- Added: prompt security core — the model sees **only** the statement + visible sample tests + the player's code (hidden tests never leave the server, verified by the gate); code is fenced and marked untrusted data (injection attempts ignored — tested live); model output defensively parsed (`parseAiReview`)
+- Added: web surfaces — ANALYZE button + review panel on the practice workbench, REVIEW MY CODE on the finished-duel result overlay; feature hides itself when unconfigured; privacy page discloses exactly what is sent and when
+- Notes: key owner-supplied via `GEMINI_API_KEY` (env-only, never committed); model churn caught by the gate — `gemini-2.0-flash` retired upstream, `gemini-2.5-flash` pulled for new users, shipped on `gemini-3.5-flash` (`scripts/probe-models.ts` re-probes when Google shuffles again). Feature is **off in prod until the owner sets `GEMINI_API_KEY` in Render env**
+- Gate: `f11-ai-test.ts` **25/25** (feature-off contract, no hidden data in prompt, injection resistance live, durable cap live, 413/403/429 paths)
+
 ## [2026-11-02] Reverted: both UI restyles removed (owner decision)
 - Reverted: **/practice roster restyle** (`aacf0e3`) and **workbench restyle + resizable split** (`92478b8`) removed from `main` at the owner's request — the tree is again byte-identical to the challenge-pool merge (`c095637`); **the 40-challenge pool is unaffected and stays live**
 - Removed with them: resizable split + pane collapse buttons, editor gutter/syntax highlight, `EngineLatency` telemetry widget, structured statement (PARAMETERS/RETURNS), sticky `.practice-header` band, filter tabs, J/K nav, and the `/api`-prefixed health registration (nothing else consumed it; the bare `/health` probe for Render remains)

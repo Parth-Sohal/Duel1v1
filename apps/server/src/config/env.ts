@@ -47,7 +47,7 @@ export const env = {
    * affordance). Owner-supplied Google AI Studio key; never committed.
    */
   geminiApiKey: process.env.GEMINI_API_KEY ?? '',
-  aiModel: process.env.AI_MODEL ?? 'gemini-2.0-flash',
+  aiModel: process.env.AI_MODEL ?? 'gemini-3.5-flash',
   aiDailyLimit: number('AI_DAILY_LIMIT', 3),
   aiMaxCodeChars: number('AI_MAX_CODE_CHARS', 20_000),
 } as const;

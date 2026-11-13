@@ -133,6 +133,25 @@ async function main(): Promise<void> {
   if (!off) {
     console.log('  key present — running live provider tests');
 
+    // Ownership + size probes FIRST — they fail before the provider call and
+    // must not consume the 3/day cap.
+    const tooBig = await call('/api/ai/review', 'POST', {
+      slug: SLUG,
+      language: 'javascript',
+      sourceCode: 'x'.repeat(20_001),
+      context: 'practice',
+    }, probe);
+    check('oversized code → 413 before the provider', tooBig.status === 413 && tooBig.json?.error === 'code_too_large', `got ${tooBig.status}`);
+
+    const foreign = await call('/api/ai/review', 'POST', {
+      slug: SLUG,
+      language: 'javascript',
+      sourceCode: 'function missingNumber(n, nums) { return nums[0]; }',
+      context: 'duel',
+      submissionId: '00000000-0000-4000-8000-000000000000',
+    }, probe);
+    check('duel context with a foreign submission id → 403', foreign.status === 403, `got ${foreign.status}`);
+
     const wrong = await call('/api/ai/review', 'POST', {
       slug: SLUG,
       language: 'javascript',
@@ -181,23 +200,6 @@ async function main(): Promise<void> {
     check('live: durable cap — 4th review of the day → 429', capped.status === 429 && capped.json?.error === 'daily_cap_reached', `got ${capped.status}`);
     const usageAfter = await call('/api/ai/usage', 'GET', undefined, probe);
     check('live: usage shows 3 of 3 used', usageAfter.json?.used === 3 && usageAfter.json?.limit === 3, JSON.stringify(usageAfter.json));
-
-    const tooBig = await call('/api/ai/review', 'POST', {
-      slug: SLUG,
-      language: 'javascript',
-      sourceCode: 'x'.repeat(20_001),
-      context: 'practice',
-    }, probe);
-    check('oversized code → 413 before the provider', tooBig.status === 413 && tooBig.json?.error === 'code_too_large', `got ${tooBig.status}`);
-
-    const foreign = await call('/api/ai/review', 'POST', {
-      slug: SLUG,
-      language: 'javascript',
-      sourceCode: 'function missingNumber(n, nums) { return nums[0]; }',
-      context: 'duel',
-      submissionId: '00000000-0000-4000-8000-000000000000',
-    }, probe);
-    check('duel context with a foreign submission id → 403', foreign.status === 403, `got ${foreign.status}`);
   } else {
     console.log('  GEMINI_API_KEY not set — Part B (live provider tests) skipped.');
     console.log('  Owner: create a free key at aistudio.google.com and set GEMINI_API_KEY in apps/server/.env, then re-run.');
