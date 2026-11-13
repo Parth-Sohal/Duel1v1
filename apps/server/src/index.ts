@@ -13,6 +13,7 @@ import { duelRoutes } from './routes/duels.js';
 import { matchRoutes } from './routes/matches.js';
 import { feedbackRoutes } from './routes/feedback.js';
 import { eventRoutes } from './routes/events.js';
+import { aiRoutes } from './routes/ai.js';
 import { setupGateway } from './services/gateway.js';
 import { sweepMatches } from './services/matches.js';
 import { closeExpiredRooms } from './services/rooms.js';
@@ -77,6 +78,8 @@ async function main(): Promise<void> {
   // F10 feedback + analytics.
   await app.register(feedbackRoutes, { db, prefix: '/api' });
   await app.register(eventRoutes, { db, prefix: '/api' });
+  // F11 AI code analysis: /api/ai/usage + /api/ai/review (+ dev prompt preview).
+  await app.register(aiRoutes, { db, prefix: '/api' });
 
   // Socket.IO shares Fastify's HTTP server; engine.io only handles its own
   // /socket.io paths (polling + websocket upgrades), other requests stay with Fastify.

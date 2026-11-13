@@ -23,3 +23,7 @@ npm-debug.log*
 Thumbs.db
 .idea/
 .vscode/
+
+# Testpad course-automation workspace (separate workstream; contains a full
+# Chrome profile cache and course artifacts — never commit)
+scripts/testpad/

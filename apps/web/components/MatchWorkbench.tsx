@@ -6,6 +6,7 @@ import type { Socket } from 'socket.io-client';
 import { CodePanel, SampleTests, type MatchOutcome } from './CodePanel';
 import { Chip, Eyebrow, Headline } from './ui';
 import { Avatar } from './Avatar';
+import { AiAnalyze } from './AiReview';
 import { connectGameSocket } from '../lib/game-socket';
 import type { ChallengeDetail, VisibleTest } from '../lib/practice';
 
@@ -336,7 +337,7 @@ export function MatchWorkbench({ matchId, myUserId }: { matchId: string; myUserI
 
         {/* Result overlay */}
         {outcome && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-carbon/95 px-6 text-center backdrop-blur-sm">
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center overflow-y-auto bg-carbon/95 px-6 py-10 text-center backdrop-blur-sm">
             <p className="mb-4 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
               Duel decided
             </p>
@@ -376,6 +377,18 @@ export function MatchWorkbench({ matchId, myUserId }: { matchId: string; myUserI
               <Chip variant="dark">Server referee</Chip>
               <Chip variant="dark">Points updated</Chip>
             </div>
+            {/* F11: opt-in AI review of the player's OWN finished-duel code. */}
+            {match.mySubmission && (
+              <div className="mt-8 w-full max-w-md text-left">
+                <AiAnalyze
+                  slug={match.challenge.slug}
+                  context="duel"
+                  language={(match.mySubmission.language as 'javascript' | 'python') ?? 'javascript'}
+                  source={match.mySubmission.sourceCode}
+                  submissionId={match.mySubmission.id}
+                />
+              </div>
+            )}
           </div>
         )}
       </section>

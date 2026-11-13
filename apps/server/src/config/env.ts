@@ -41,4 +41,13 @@ export const env = {
     .filter(Boolean),
   /** F10: Sentry DSNs — absent = error tracking off, app runs exactly as before. */
   sentryDsn: process.env.SENTRY_DSN ?? '',
+  /**
+   * F11 AI code analysis (docs/features/F11-ai-analysis.md). Absent key =
+   * feature off (routes answer 503 ai_disabled, the web app hides the
+   * affordance). Owner-supplied Google AI Studio key; never committed.
+   */
+  geminiApiKey: process.env.GEMINI_API_KEY ?? '',
+  aiModel: process.env.AI_MODEL ?? 'gemini-2.0-flash',
+  aiDailyLimit: number('AI_DAILY_LIMIT', 3),
+  aiMaxCodeChars: number('AI_MAX_CODE_CHARS', 20_000),
 } as const;

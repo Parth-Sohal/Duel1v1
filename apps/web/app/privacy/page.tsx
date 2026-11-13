@@ -30,6 +30,10 @@ const SECTIONS: Array<{ title: string; body: string }> = [
     body: 'When something breaks, an error report may be sent to Sentry. Reports carry technical details and internal ids — never your code, your email, or your session cookie.',
   },
   {
+    title: 'AI code review',
+    body: 'Only when you click Analyze, the code you wrote plus the challenge statement and its sample tests are sent to Google Gemini to produce hints and a complexity estimate. Hidden tests are never sent — they never leave the server. No conversation memory is kept; each review is one request. The request itself is logged on our side (who, which challenge, when) but the code text is not stored again — it stays on your submission record as usual.',
+  },
+  {
     title: 'Cookies',
     body: 'One first-party session cookie keeps you signed in. It is HttpOnly (JavaScript cannot read it) and SameSite=Lax. No consent banner, because there is nothing else to consent to.',
   },
@@ -49,7 +53,7 @@ export default function PrivacyPage() {
           </div>
           <Headline className="mb-8">Privacy.</Headline>
           <p className="max-w-md font-grotesk text-sm leading-relaxed text-muted">
-            What {`{ duel }`} stores, and what it deliberately does not. Last updated 2026-10-30.
+            What {`{ duel }`} stores, and what it deliberately does not. Last updated 2026-11-13.
           </p>
           <div className="mt-10 max-w-md border border-line-light bg-sand/60 p-4 font-grotesk text-sm leading-relaxed text-muted">
             The short version: a display name, an email, your games. Nothing else, nothing sold, nothing tracked.
