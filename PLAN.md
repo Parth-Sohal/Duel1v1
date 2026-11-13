@@ -222,7 +222,9 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 
 **Test gate (per feature)**
 - [ ] F9: two strangers get paired; recently played challenges avoided; no one is paired with themselves
-- [ ] F10: cap enforced on the server; oversized input rejected; prompt-injection attempts ignored; no hidden data in prompts
+- [x] F10: cap enforced on the server; oversized input rejected; prompt-injection attempts ignored; no
+      hidden data in prompts (**closed 2026-11-13** as `docs/features/F11-ai-analysis.md`,
+      `f11-ai-test.ts` 25/25 with live provider tests; Gemini, durable 3/day cap, hints-only)
 - [ ] F11: screens match the design; usable on mobile; keyboard and contrast checks pass
 - [ ] F12: every challenge passes with a reference solution in each new language; time multipliers keep duels fair
 
@@ -245,6 +247,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 
 | Date | Iteration | Status | Notes |
 |---|---|---|---|
+| 2026-11-13 | 5 (F10→F11 doc) | Build + test passed | AI code analysis: Gemini hints-only reviews, durable 3/day cap, injection-resistant prompt (hidden tests never sent), practice + duel-result surfaces; `f11-ai-test.ts` 25/25 with live provider tests; feature off in prod until Render gets `GEMINI_API_KEY` |
 | 2026-10-26 | — | — | Project started; plan and docs written |
 | 2026-10-27 | 0 (F00) | Build + local test gate passed | Monorepo, server `/health` + DB connect, migrations, lint fixed; deployment pending owner accounts |
 | 2026-10-27 | 0 (F00) | **Iteration 0 complete** | Deployed: web on Vercel, server on Render with DB; repo pushed to GitHub; merged to main |

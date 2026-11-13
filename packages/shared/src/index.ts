@@ -95,8 +95,17 @@ export const SOCKET_TOKEN_WINDOW_MS = 60 * 1000;
 export const FEEDBACK_MAX_PER_WINDOW = 3; // feedback notes per user
 export const FEEDBACK_WINDOW_MS = 10 * 60 * 1000;
 export const FEEDBACK_MAX_CHARS = 500;
+
+/** F11 AI code analysis (docs/features/F11-ai-analysis.md). */
+/** Sliding-window burst limit on top of the durable daily cap. */
+export const AI_BURST_MAX_PER_WINDOW = 5;
+export const AI_BURST_WINDOW_MS = 60 * 1000;
+/** Durable per-player analyses per UTC day, counted from ai_reviews rows. */
+export const AI_DAILY_LIMIT = 3;
+/** Server rejects longer code before the provider ever sees it. */
+export const AI_MAX_CODE_CHARS = 20_000;
 /** Owner emails (comma-separated) allowed to read analytics counts. */
-export const EVENTS = ['signup', 'match_started', 'submit', 'daily_view', 'feedback'] as const;
+export const EVENTS = ['signup', 'match_started', 'submit', 'daily_view', 'feedback', 'ai_review'] as const;
 export type EventType = (typeof EVENTS)[number];
 /** Visible sample tests shown in the editor pane. */
 export const MAX_VISIBLE_TESTS = 3;

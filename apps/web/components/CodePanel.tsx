@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { LANGUAGES, MAX_CODE_LENGTH, type Language } from '@coding-arena/shared';
 import type { ChallengeDetail, VisibleTest } from '../lib/practice';
+import { AiAnalyze } from './AiReview';
 
 /**
  * The workbench (docs/features/F04-practice-mode.md): language chips, a plain
@@ -221,6 +222,13 @@ export function CodePanel({
       {error && <p className="mt-3 font-grotesk text-sm text-accent">{error}</p>}
 
       {banner}
+
+      {/* F11: opt-in AI review. Practice workbench only — the duel workbench
+          never offers it (locked mid-match), and the finished-duel review
+          lives on the match page instead. */}
+      {!submitPath && (
+        <AiAnalyze slug={challenge.slug} context="practice" language={language} source={source} locked={locked} />
+      )}
 
       {outcome && outcome.results.length > 0 && (
         <div className="mt-3 border border-line-dark">

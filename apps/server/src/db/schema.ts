@@ -31,6 +31,9 @@ export const matchResultEnum = pgEnum('match_result', ['win', 'draw', 'forfeit']
 
 export const submissionKindEnum = pgEnum('submission_kind', ['run', 'submit']);
 
+/** F11: where the analyzed code came from. */
+export const aiContextEnum = pgEnum('ai_context', ['practice', 'duel']);
+
 export const submissionStatusEnum = pgEnum('submission_status', [
   'queued',
   'running',
@@ -261,4 +264,27 @@ export const matchPlayers = pgTable('match_players', {
   disconnectedAt: timestamp('disconnected_at', { withTimezone: true }),
 }, (t) => [
   check('match_players_seat_valid', sql`${t.seat} IN (1, 2)`),
+]);
+
+/**
+ * F11 AI code analysis (docs/features/F11-ai-analysis.md). One row per
+ * requested review; the row count per user per UTC day IS the durable daily
+ * cap (AI_DAILY_LIMIT) — survives server restarts by construction.
+ * `verdict` stores the model's parsed JSON review; `source_code` is never
+ * stored here (it already lives on the referenced submission, if any).
+ */
+export const aiReviews = pgTable('ai_reviews', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  challengeId: uuid('challenge_id').notNull().references(() => challenges.id, { onDelete: 'cascade' }),
+  /** The analyzed submission when the review is anchored to one (duel reviews
+   * and practice reviews of a saved submit); null for editor-scratch reviews. */
+  submissionId: uuid('submission_id').references(() => submissions.id, { onDelete: 'set null' }),
+  context: aiContextEnum('context').notNull(),
+  language: languageEnum('language').notNull(),
+  verdict: jsonb('verdict').notNull(), // parsed model output (verdict/headline/hints/complexity/suggestions)
+  model: text('model').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index('ai_reviews_user_created_idx').on(t.userId, t.createdAt),
 ]);
