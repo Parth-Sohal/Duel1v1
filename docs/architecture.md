@@ -127,6 +127,8 @@ Full schema in `docs/data-model.md`. Key points:
 
 To keep that door open now: match state in the database, matchmaking behind a small interface, stateless server, and the timer stored as `ends_at`.
 
+F9's first implementation follows that door: `MatchmakingQueue` is process memory on the single game server, while the matches it creates are normal durable `matches` rows (`room_id = NULL`). Running more than one game server requires moving the queue to Redis (or routing all matchmaking to one instance) — the interface is the seam.
+
 ## 12. Future shape (if it grows)
 
 ```text

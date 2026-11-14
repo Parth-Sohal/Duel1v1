@@ -4,7 +4,7 @@ import cookie from '@fastify/cookie';
 import { Server as SocketIOServer } from 'socket.io';
 import { env } from './config/env.js';
 import { createDb } from './db/index.js';
-import { FORFEIT_PENALTY, FORFEIT_REWARD, WIN_SWING_MIN } from '@coding-arena/shared';
+import { FORFEIT_PENALTY, FORFEIT_REWARD, MATCHMAKING_TICK_MS, WIN_SWING_MIN } from '@coding-arena/shared';
 import { healthRoutes } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
 import { meRoutes } from './routes/me.js';
@@ -14,10 +14,12 @@ import { matchRoutes } from './routes/matches.js';
 import { feedbackRoutes } from './routes/feedback.js';
 import { eventRoutes } from './routes/events.js';
 import { aiRoutes } from './routes/ai.js';
+import { leaderboardRoutes } from './routes/leaderboard.js';
 import { setupGateway } from './services/gateway.js';
 import { sweepMatches } from './services/matches.js';
 import { closeExpiredRooms } from './services/rooms.js';
 import { ensureBotUser, runBotTick } from './services/bots.js';
+import { runMatchmakingTick } from './services/matchmaking.js';
 import { captureError, initObservability } from './services/observability.js';
 import { eq, sql } from 'drizzle-orm';
 import { challengeVersions, matches } from './db/schema.js';
@@ -80,6 +82,8 @@ async function main(): Promise<void> {
   await app.register(eventRoutes, { db, prefix: '/api' });
   // F11 AI code analysis: /api/ai/usage + /api/ai/review (+ dev prompt preview).
   await app.register(aiRoutes, { db, prefix: '/api' });
+  // F09 public Rankings feed: /api/leaderboard.
+  await app.register(leaderboardRoutes, { db, prefix: '/api' });
 
   // Socket.IO shares Fastify's HTTP server; engine.io only handles its own
   // /socket.io paths (polling + websocket upgrades), other requests stay with Fastify.
@@ -138,12 +142,33 @@ async function main(): Promise<void> {
   const sweepTimer = setInterval(() => void sweep(), SWEEP_INTERVAL_MS);
   sweepTimer.unref();
 
+  // F09 matchmaking: pair queued humans every couple of seconds. The queue is
+  // process memory; matches themselves are durable in Postgres.
+  const matchmakingPass = async () => {
+    try {
+      const created = await runMatchmakingTick(db);
+      if (created.length > 0) {
+        app.log.info(
+          { matches: created.map((c) => c.matchId), players: created.map((c) => c.players) },
+          'quick matches created',
+        );
+      }
+    } catch (err) {
+      app.log.error({ err }, 'matchmaking pass failed');
+      captureError(err, { scope: 'matchmaking' });
+    }
+  };
+  await matchmakingPass();
+  const matchmakingTimer = setInterval(() => void matchmakingPass(), MATCHMAKING_TICK_MS);
+  matchmakingTimer.unref();
+
   await app.listen({ port: env.port, host: '0.0.0.0' });
   app.log.info({ port: env.port, corsOrigin: env.corsOrigin }, 'server started');
 
   const shutdown = async (signal: string) => {
     app.log.info({ signal }, 'shutting down');
     clearInterval(sweepTimer);
+    clearInterval(matchmakingTimer);
     io.close();
     await app.close();
     await pool.end();

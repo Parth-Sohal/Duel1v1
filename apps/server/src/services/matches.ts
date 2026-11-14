@@ -160,6 +160,58 @@ export type Outcome =
   | { kind: 'draw' }
   | { kind: 'forfeit'; winnerId: string; loserId: string };
 
+/** F09 quick match: pair two queued humans with no room. */
+export type QuickMatchResult =
+  | { ok: true; matchId: string }
+  | { ok: false; error: 'invalid_players' | 'already_in_match' | 'challenge_unavailable' };
+
+/**
+ * F09 random matchmaking (docs/features/F09-matchmaking-leaderboard.md):
+ * create the same match a room start would, but with `room_id = NULL`.
+ * `pickChallenge` applies the F6 repeat rule; D5 swing, deadline, seats and
+ * points_before are identical, so the rest of the engine needs no special case.
+ */
+export async function createQuickMatch(
+  db: Database,
+  playerA: string,
+  playerB: string,
+  difficulty: Difficulty | null,
+): Promise<QuickMatchResult> {
+  if (playerA === playerB) return { ok: false, error: 'invalid_players' };
+  // Defensive re-check: the queue can go stale between enqueue and pairing.
+  if (await activeMatchFor(db, playerA)) return { ok: false, error: 'already_in_match' };
+  if (await activeMatchFor(db, playerB)) return { ok: false, error: 'already_in_match' };
+
+  const playerIds = [playerA, playerB];
+  const picked = await pickChallenge(db, playerIds, difficulty);
+  if (!picked) return { ok: false, error: 'challenge_unavailable' };
+
+  const before = await db.select({ id: users.id, points: users.points }).from(users).where(inArray(users.id, playerIds));
+  const pointsOf = (id: string) => before.find((b) => b.id === id)?.points ?? 0;
+  const startedAt = new Date();
+
+  const matchId = await db.transaction(async (tx) => {
+    const [match] = await tx
+      .insert(matches)
+      .values({
+        roomId: null, // quick matches have no lobby
+        challengeVersionId: picked.versionId,
+        status: 'active',
+        swingPoints: randomSwing(),
+        startedAt,
+        endsAt: new Date(startedAt.getTime() + MATCH_DURATION_MS),
+      })
+      .returning({ id: matches.id });
+    await tx.insert(matchPlayers).values([
+      { matchId: match.id, userId: playerA, seat: 1, pointsBefore: pointsOf(playerA) },
+      { matchId: match.id, userId: playerB, seat: 2, pointsBefore: pointsOf(playerB) },
+    ]);
+    return match.id;
+  });
+
+  return { ok: true, matchId };
+}
+
 /**
  * Finish an active match: the conditional update guarantees exactly one
  * finisher under near-simultaneous submissions. Points (D5) move in the same

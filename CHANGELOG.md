@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026-11-14] F9 random matchmaking + leaderboard (iteration 5)
+- Added: **ANYONE is a real queue** — `POST/GET/DELETE /api/duels/matchmaking` behind a small `MatchmakingQueue` interface (process memory on the single game server; no table, no Redis). A 2 s pairing pass takes the oldest compatible pair and creates a normal match with **`room_id = NULL`**, so the existing engine, timer, judge, points and history all apply unchanged
+- Added: queue rules — one entry per player, `ANY` pairs with every difficulty while two concrete difficulties must match (the match uses the concrete side), F6 repeat rule still avoids recently played challenges, the one-live-duel guard is re-checked before pairing, and no player can ever pair with themselves
+- Added: liveness without lies — status GETs are heartbeats, silent entries prune after 30 s, a search caps at 5 min, matched results stay recoverable for 5 min, and paired players are **reserved as `pairing`** while the match insert runs so a slow database cannot make the UI report a false `idle`
+- Added: **`GET /api/leaderboard`** (public, optional auth) — top 30 ranked humans by real `users.points` (ties: wins, name, id), last-five W/L/D form from finished human matches, total ranked players, and the signed-in viewer's own real rank even outside the top 30; bots, practice-only accounts and unranked players are excluded
+- Added: web — **RANKINGS** nav link and `/leaderboard` from `SplitShell` (cream ladder table + dark viewer-rank panel), plus the live **ANYONE** search UI on `/duel` with elapsed timer, real waiting count, cancel, and automatic navigation on `matched`. Signed-out Rankings works; no fake players or simulated live status
+- Fixed: a live pairing check exposed a race where a paired player briefly read `idle` while the DB match was being created — reservations keep the public status `searching` until the result is real
+- Gate: `f09-matchmaking-test.ts` **39/39**; live API check paired two throwaway sessions (`easy` + `ANY`) into one active match; screens reviewed at 1440/390 with no horizontal overflow. No migration, no new dependencies; multi-instance matchmaking still needs Redis (backlog)
+
 ## [2026-11-13] F11 AI code analysis (iteration 5)
 - Added: **AI code review** — `POST /api/ai/review` analyzes a player's own practice code with Google Gemini: verdict, up to 3 hints (never a working solution), time/space complexity, quality suggestions; correct code is reviewed too (owner decision). Opt-in only — nothing is sent unless the player clicks Analyze
 - Added: `ai_reviews` table (migration 0015) — the **3-per-player-per-day cap is durable** (row-counted per UTC day, survives restarts); 429 `daily_cap_reached` after 3, 413 for code over 20 000 chars before the provider ever sees it, 403 on duel reviews of someone else's submission, in-memory burst limiter on top

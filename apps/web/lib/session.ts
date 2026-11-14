@@ -1,7 +1,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE } from '@coding-arena/shared';
-import type { UserPublic } from '@coding-arena/shared';
+import type { LeaderboardResponse, UserPublic } from '@coding-arena/shared';
 
 /**
  * Server-side session lookup. The cookie lives on the web origin (the game
@@ -43,4 +43,26 @@ export async function getPublicUser(id: string): Promise<UserPublic | null> {
 
   const data = (await res.json()) as { user?: UserPublic };
   return data.user ?? null;
+}
+
+/**
+ * F09 leaderboard feed, server-rendered. Works signed out; when a session
+ * cookie exists it is forwarded so the API can add the viewer's own rank.
+ * Returns null on a network/API failure — the page shows a designed retry.
+ */
+export async function getLeaderboard(): Promise<LeaderboardResponse | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  const origin = process.env.API_ORIGIN ?? 'http://localhost:4000';
+
+  try {
+    const res = await fetch(`${origin}/api/leaderboard`, {
+      headers: token ? { cookie: `${SESSION_COOKIE}=${token}` } : undefined,
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as LeaderboardResponse;
+  } catch {
+    return null;
+  }
 }

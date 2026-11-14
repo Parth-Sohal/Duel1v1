@@ -9,10 +9,10 @@ export const metadata: Metadata = {
 };
 
 /**
- * PLAY — duel setup (docs/features/F05-friend-rooms.md). RIVAL friend rooms
- * and the KERN bot are live; ANYONE (stranger matchmaking) is still a later
- * iteration and stays disabled. The launcher keeps the only writable route
- * behavior: create room, join by invite code, or seat KERN.
+ * PLAY — duel setup (docs/features/F05-friend-rooms.md,
+ * docs/features/F09-matchmaking-leaderboard.md). RIVAL friend rooms, the KERN
+ * bot, and the real ANYONE human queue are live. The launcher keeps the only
+ * writable route behavior: create room, join by invite code, queue, or seat KERN.
  */
 export default async function DuelPage() {
   const user = await getCurrentUser();

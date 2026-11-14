@@ -51,6 +51,7 @@ export function Header({ split = 'default' }: { split?: 'default' | 'even' }) {
   const onProfile = pathname === '/profile';
   const onDaily = pathname.startsWith('/daily');
   const onPractice = pathname.startsWith('/practice');
+  const onRankings = pathname.startsWith('/leaderboard');
   const onPlay = pathname.startsWith('/duel') || pathname.startsWith('/match/');
 
   const skillMapLink = (
@@ -98,14 +99,18 @@ export function Header({ split = 'default' }: { split?: 'default' | 'even' }) {
     </Link>
   );
 
-  // Nav items from the design that have no screens yet: shown, muted, inert.
-  const plannedNav = (label: string) => (
-    <span
-      title="Arrives in a later iteration"
-      className="cursor-not-allowed whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-muted"
+  // F09: Rankings is a real page now. On the balanced (even) header the nav
+  // cell is narrower, so it still waits for 1400px there; on mobile it is
+  // always rendered inside the dropdown.
+  const rankingsLink = (extra = '') => (
+    <Link
+      href="/leaderboard"
+      className={`inline-flex min-h-11 items-center whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:text-accent ${
+        onRankings ? 'underline decoration-accent decoration-2 underline-offset-8' : ''
+      } ${extra}`}
     >
-      {label}
-    </span>
+      Rankings
+    </Link>
   );
 
   const chip = user ? (
@@ -167,9 +172,7 @@ export function Header({ split = 'default' }: { split?: 'default' | 'even' }) {
               {playLink}
               {dailyLink}
               {practiceLink}
-              <span className={even ? 'hidden min-[1400px]:inline' : 'hidden xl:inline'}>
-                {plannedNav('Rankings')}
-              </span>
+              {rankingsLink(even ? 'hidden min-[1400px]:inline-flex' : '')}
             </nav>
           </div>
           <div className="hidden flex-shrink-0 items-center gap-4 xl:flex">
@@ -217,7 +220,7 @@ export function Header({ split = 'default' }: { split?: 'default' | 'even' }) {
           {playLink}
           {dailyLink}
           {practiceLink}
-          <span className="sm:hidden">{plannedNav('Rankings')}</span>
+          {rankingsLink()}
           <div className="flex flex-col items-start gap-3 border-t border-line-light pt-4">
             {chip && <span className="[&>a]:!text-carbon">{chip}</span>}
             {user ? (

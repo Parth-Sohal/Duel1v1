@@ -104,6 +104,18 @@ export const AI_BURST_WINDOW_MS = 60 * 1000;
 export const AI_DAILY_LIMIT = 3;
 /** Server rejects longer code before the provider ever sees it. */
 export const AI_MAX_CODE_CHARS = 20_000;
+/**
+ * F09 random matchmaking (docs/features/F09-matchmaking-leaderboard.md).
+ * The queue is in-memory on the single game server; these bounds keep it
+ * honest when tabs close or searches are abandoned.
+ */
+export const MATCHMAKING_TICK_MS = 2000; // pairing pass cadence
+export const MATCHMAKING_STALE_MS = 30_000; // no status GET for this long → prune
+export const MATCHMAKING_ENTRY_TTL_MS = 5 * 60 * 1000; // one search may wait this long
+export const MATCHMAKING_MATCHED_TTL_MS = 5 * 60 * 1000; // keep the matchId recoverable
+/** Leaderboard shows the top N ranked humans (viewer rank may be lower). */
+export const LEADERBOARD_TOP_N = 30;
+
 /** Owner emails (comma-separated) allowed to read analytics counts. */
 export const EVENTS = ['signup', 'match_started', 'submit', 'daily_view', 'feedback', 'ai_review'] as const;
 export type EventType = (typeof EVENTS)[number];
@@ -126,4 +138,44 @@ export type UserPublic = {
   draws: number;
   /** ISO timestamp of account creation (public — shown as "joined"). */
   createdAt: string;
+};
+
+/** Duel difficulty filter (F09). `null` means ANY in API payloads. */
+export type DuelDifficulty = 'easy' | 'medium' | 'hard';
+
+/**
+ * Matchmaking status returned by all three /duels/matchmaking routes.
+ * `waiting` is the count of OTHER real players waiting — never simulated.
+ */
+export type MatchmakingStatus =
+  | { status: 'idle' }
+  | {
+      status: 'searching';
+      since: string;
+      difficulty: DuelDifficulty | null;
+      waiting: number;
+    }
+  | { status: 'matched'; matchId: string; matchedAt: string };
+
+/** One row on the Rankings page. `lastFive` is newest first. */
+export type LeaderboardResult = 'W' | 'L' | 'D';
+
+export type LeaderboardEntry = {
+  rank: number;
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  points: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  lastFive: LeaderboardResult[];
+};
+
+export type LeaderboardResponse = {
+  entries: LeaderboardEntry[];
+  /** All eligible ranked humans, not just the returned top N. */
+  totalPlayers: number;
+  /** The signed-in viewer's real entry, or null when signed out/unranked. */
+  viewer: LeaderboardEntry | null;
 };

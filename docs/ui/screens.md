@@ -12,7 +12,7 @@ Across both halves: logo `{ duel }`, nav items, and the user chip `NAME / RATING
 |---|---|---|
 | PLAY | Start a duel | Iteration 3 (practice in 2) |
 | SKILL MAP | The player's profile | Iteration 1 |
-| LEAGUES | Seasons and leaderboard | Later |
+| LEAGUES | Seasons and leaderboard | Leaderboard shipped as **Rankings** (F9, 2026-11-14); seasons and tiers later |
 | CREATE | Create your own challenge | Backlog |
 | LIVE ARENA (accent color) | Watch live duels | Backlog |
 | User chip | Name and rating; links to the profile | Iteration 1 |
@@ -95,12 +95,14 @@ Rule: show only items that exist. In v1 the header has the logo, the profile lin
 - Dashed "PROMOTION LINE" after rank 5; your row highlighted with a "YOU" tag.
 - Call to action: "10 POINTS FROM THE PROMOTION LINE." and a "FIND A DUEL" button.
 
+**Shipped in F9 (2026-11-14):** `/leaderboard` uses this table idea with real data only — top 30 ranked humans by points, W–L–D record, last-five W/L/D marks, and the viewer's own rank on the dark half. There are no seasons, tiers, promotion lines, clubs, or "updates live" status yet; the header entry is **Rankings**, not LEAGUES.
+
 | Element | Data needed | Plan |
 |---|---|---|
-| Leaderboard (rank, player, rating, last five) | Ratings and recent match results (queries) | Iteration 5 (F9) |
+| Leaderboard (rank, player, rating, last five) | Ratings and recent match results (queries) | **Shipped Iteration 5 (F9)** — `/leaderboard`, public, top 30 + viewer rank |
 | Seasons, tiers, promotion and relegation | `seasons`, tier per player per season, end-of-season job | Later; big feature |
 | College Clash (clubs, weekly points) | `clubs`, membership, weekly totals | Later; fits the student audience well, so worth planning after launch |
-| "Points from the promotion line" call to action | Derived from the leaderboard | With leaderboard |
+| "Points from the promotion line" call to action | Derived from the leaderboard | Shipped in F9 as the viewer-rank card + **Find a match** link; no promotion line until tiers exist |
 
 ## 5. Screens still to design
 

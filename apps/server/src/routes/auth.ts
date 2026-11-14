@@ -88,6 +88,20 @@ export function requireAuth(db: Database) {
   };
 }
 
+/**
+ * Optional cookie-auth guard for public routes (F09 leaderboard): resolves the
+ * session when present, never rejects. A missing or stale session simply
+ * renders the signed-out view.
+ */
+export function optionalAuth(db: Database) {
+  return async function (request: FastifyRequest): Promise<void> {
+    const token = request.cookies[SESSION_COOKIE];
+    if (!token) return;
+    const session = await resolveSession(db, token);
+    if (session) request.user = session.user;
+  };
+}
+
 // Type augmentation so `request.user` is typed after the guard runs.
 declare module 'fastify' {
   interface FastifyRequest {

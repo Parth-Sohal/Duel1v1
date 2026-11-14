@@ -215,13 +215,15 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 **Goal:** build what real users ask for.
 
 **Features (order decided by feedback)**
-- **F9 Random matchmaking and leaderboard:** queue behind a small interface (in-memory first). Start only when enough people are online at the same time.
+- **F9 Random matchmaking and leaderboard:** queue behind a small interface (in-memory first). Start only when enough people are online at the same time. **Shipped 2026-11-14** — real ANYONE queue + `/leaderboard` Rankings; single-server in-memory queue, quick matches with `room_id = NULL`, top-30 real-human ladder.
 - **F10 AI code analysis:** complexity estimate and suggestions, server-enforced daily cap, player code treated as untrusted text, never includes hidden tests or other players' code.
 - **F11 UI polish:** full game-style look, animations, responsive and accessibility pass.
 - **F12 More languages:** C++ and Java (starter code, Judge0 language IDs, time and memory multipliers, reference solutions for every challenge).
 
 **Test gate (per feature)**
-- [ ] F9: two strangers get paired; recently played challenges avoided; no one is paired with themselves
+- [x] F9: two strangers get paired; recently played challenges avoided; no one is paired with themselves
+      (**closed 2026-11-14** as `docs/features/F09-matchmaking-leaderboard.md`,
+      `f09-matchmaking-test.ts` 39/39; live two-account queue check paired into one active match; screens checked at 1440/390)
 - [x] F10: cap enforced on the server; oversized input rejected; prompt-injection attempts ignored; no
       hidden data in prompts (**closed 2026-11-13** as `docs/features/F11-ai-analysis.md`,
       `f11-ai-test.ts` 25/25 with live provider tests; Gemini, durable 3/day cap, hints-only)
@@ -247,6 +249,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 
 | Date | Iteration | Status | Notes |
 |---|---|---|---|
+| 2026-11-14 | 5 (F9) | Build + test passed | Random matchmaking + real leaderboard: **ANYONE** is a live queue (process-memory `MatchmakingQueue`, pairing pass every 2 s, quick matches with `room_id = NULL` through the existing engine); `/leaderboard` top-30 real-human ladder with last-five form and optional-auth viewer rank; Rankings nav link. F6 repeat rule and one-live-duel guard preserved; pairing reservations prevent a false `idle` during slow match inserts. Gate `f09-matchmaking-test.ts` **39/39** + live two-account pairing; screens at 1440/390, no overflow; server/web builds green |
 | 2026-11-13 | 5 (F10→F11 doc) | Build + test passed | AI code analysis: Gemini hints-only reviews, durable 3/day cap, injection-resistant prompt (hidden tests never sent), practice + duel-result surfaces; `f11-ai-test.ts` 25/25 with live provider tests; feature off in prod until Render gets `GEMINI_API_KEY` |
 | 2026-10-26 | — | — | Project started; plan and docs written |
 | 2026-10-27 | 0 (F00) | Build + local test gate passed | Monorepo, server `/health` + DB connect, migrations, lint fixed; deployment pending owner accounts |

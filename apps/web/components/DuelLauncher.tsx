@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DRAW_PENALTY,
@@ -11,22 +11,25 @@ import {
   WIN_SWING_MAX,
   WIN_SWING_MIN,
 } from '@coding-arena/shared';
+import type { MatchmakingStatus } from '@coding-arena/shared';
 import { Chip, Eyebrow, Headline } from './ui';
 
 /**
  * PLAY launcher (owner design: compact duel setup, cream direction).
  * Left = opponent + difficulty + match facts, right = create room / join by
- * invite code, with the identical protocol rules panel. Only real options are
- * interactive: RIVAL rooms and the KERN bot work today; ANYONE (stranger
- * matchmaking) is visibly disabled until that iteration ships.
+ * invite code / queue for a stranger, with the identical protocol rules panel.
+ * RIVAL rooms, KERN, and (F09) ANYONE human matchmaking are all real; the queue
+ * status is polled from the server and never simulated.
  *
- * Behavior is unchanged: POST /api/duels/rooms, POST
- * /api/duels/rooms/:code/join, POST /api/duels/bot, then route to the lobby
+ * Behavior: POST /api/duels/rooms, POST /api/duels/rooms/:code/join,
+ * POST /api/duels/bot, or POST /api/duels/matchmaking, then route to the lobby
  * or the match. Error strings and the already-in-match guard stay as they were.
  */
 
 const MATCH_MINUTES = MATCH_DURATION_MS / 60_000;
 const GRACE_SECONDS = FORFEIT_GRACE_MS / 1_000;
+/** Client heartbeat: also keeps a queued entry alive on the server (F09). */
+const POLL_MS = 2000;
 
 const DIFFICULTIES = [
   { value: 'ANY', label: 'ANY', hint: 'Any difficulty' },
@@ -66,14 +69,98 @@ function FieldLabel({ index, children }: { index: string; children: string }) {
   );
 }
 
+/** mm:ss for the live search timer. */
+function formatElapsed(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
 export function DuelLauncher({ displayName }: { displayName: string }) {
   const router = useRouter();
   const [difficulty, setDifficulty] = useState<Difficulty>('ANY');
-  const [opponent, setOpponent] = useState<'rival' | 'bot'>('rival');
-  const [pending, setPending] = useState<'create' | 'join' | 'bot' | null>(null);
+  const [opponent, setOpponent] = useState<'rival' | 'anyone' | 'bot'>('rival');
+  const [pending, setPending] = useState<'create' | 'join' | 'bot' | 'search' | 'cancel' | null>(null);
+  const [queueState, setQueueState] = useState<MatchmakingStatus>({ status: 'idle' });
+  const [elapsed, setElapsed] = useState(0);
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const creating = pending !== null;
+  const searching = queueState.status === 'searching';
+  const waiting = queueState.status === 'searching' ? queueState.waiting : 0;
+  const searchDifficulty = queueState.status === 'searching' ? queueState.difficulty : null;
+
+  /** Leave the queue when this page unmounts (best effort; the server also prunes). */
+  useEffect(() => {
+    return () => {
+      void fetch('/api/duels/matchmaking', { method: 'DELETE' }).catch(() => {});
+    };
+  }, []);
+
+  /** Poll the real queue status; a `matched` answer routes into the duel. */
+  useEffect(() => {
+    if (queueState.status !== 'searching') return;
+
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetch('/api/duels/matchmaking');
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as MatchmakingStatus;
+        if (cancelled) return;
+        if (data.status === 'matched') {
+          router.push(`/match/${data.matchId}`);
+          return;
+        }
+        if (data.status === 'idle') {
+          setQueueState({ status: 'idle' });
+          setError('Your search ended — try again, or invite a friend instead.');
+          return;
+        }
+        setQueueState(data);
+      } catch {
+        // Network blip: the next poll retries; the entry stays alive server-side.
+      }
+    };
+
+    void tick();
+    const timer = setInterval(() => void tick(), POLL_MS);
+    // A background tab can have its timers throttled; refresh immediately when
+    // the player returns so a real pairing is never missed silently.
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void tick();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [queueState.status, router]);
+
+  /** Elapsed search seconds, derived from the server's `since` timestamp. */
+  useEffect(() => {
+    if (queueState.status !== 'searching') {
+      setElapsed(0);
+      return;
+    }
+    const startedAt = Date.parse(queueState.since);
+    const update = () => setElapsed(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [queueState]);
+
+  const chooseOpponent = (next: 'rival' | 'anyone' | 'bot') => {
+    if (next === opponent) return;
+    if (searching || pending === 'cancel') {
+      void fetch('/api/duels/matchmaking', { method: 'DELETE' }).catch(() => {});
+      setQueueState({ status: 'idle' });
+      setPending(null);
+    }
+    setOpponent(next);
+    setError(null);
+  };
 
   const startBotMatch = async () => {
     setPending('bot');
@@ -144,6 +231,45 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
     }
   };
 
+  const startSearch = async () => {
+    setPending('search');
+    setError(null);
+    try {
+      const res = await fetch('/api/duels/matchmaking', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ difficulty: difficulty === 'ANY' ? null : difficulty }),
+      });
+      const data = (await res.json().catch(() => null)) as (MatchmakingStatus & { error?: string }) | null;
+      if (res.ok && data?.status === 'matched') {
+        router.push(`/match/${data.matchId}`);
+        return;
+      }
+      if (res.ok && data?.status === 'searching') {
+        setQueueState(data);
+        return;
+      }
+      if (data?.error === 'already_in_match') setError('You already have a live duel — finish it first.');
+      else if (data?.error === 'rate_limited') setError('Too many queue actions — wait a moment and try again.');
+      else setError('Could not join the queue. Refresh and try again.');
+    } catch {
+      setError('Could not reach the arena. Check your connection.');
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const cancelSearch = async () => {
+    setPending('cancel');
+    try {
+      await fetch('/api/duels/matchmaking', { method: 'DELETE' });
+    } catch {
+      // The server prunes a silent entry after 30 s; cancel is best effort here.
+    }
+    setQueueState({ status: 'idle' });
+    setPending(null);
+  };
+
   const firstName = displayName.trim().split(/\s+/)[0] || displayName;
 
   const rules = [
@@ -178,7 +304,7 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
               <div className="grid grid-cols-3 border border-carbon/20" role="group" aria-label="Opponent">
                 <button
                   type="button"
-                  onClick={() => setOpponent('rival')}
+                  onClick={() => chooseOpponent('rival')}
                   aria-pressed={opponent === 'rival'}
                   className={`flex min-h-14 flex-col items-center justify-center gap-0.5 border-r border-carbon/20 px-2 font-mono text-xs font-bold uppercase tracking-[0.08em] transition-colors last:border-r-0 ${
                     opponent === 'rival'
@@ -190,19 +316,20 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
                 </button>
                 <button
                   type="button"
-                  disabled
-                  aria-label="Anyone — matchmaking is not open yet"
-                  title="Stranger matchmaking arrives in a later iteration"
-                  className="flex min-h-14 cursor-not-allowed flex-col items-center justify-center gap-0.5 border-r border-carbon/20 bg-sand/40 px-2 font-mono text-xs font-bold uppercase tracking-[0.08em] text-muted opacity-70"
+                  onClick={() => chooseOpponent('anyone')}
+                  aria-pressed={opponent === 'anyone'}
+                  title="Queue for the next available human at your difficulty"
+                  className={`flex min-h-14 flex-col items-center justify-center gap-0.5 border-r border-carbon/20 px-2 font-mono text-xs font-bold uppercase tracking-[0.08em] transition-colors ${
+                    opponent === 'anyone'
+                      ? 'bg-accent text-carbon'
+                      : 'bg-transparent text-carbon hover:bg-sand'
+                  }`}
                 >
                   <span>Anyone</span>
-                  <span className="font-mono text-[9px] font-semibold tracking-[0.12em] text-muted">
-                    Soon
-                  </span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setOpponent('bot')}
+                  onClick={() => chooseOpponent('bot')}
                   aria-pressed={opponent === 'bot'}
                   title="Play right now against KERN — practice duel, no points"
                   className={`flex min-h-14 flex-col items-center justify-center gap-0.5 px-2 font-mono text-xs font-bold uppercase tracking-[0.08em] transition-colors ${
@@ -217,7 +344,9 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
               <p className="mt-2 font-grotesk text-xs leading-relaxed text-muted">
                 {opponent === 'rival'
                   ? 'Rival = a friend you invite with a code. Same problem, fastest correct solution wins.'
-                  : 'KERN = the house bot. A full duel through the same engine — practice only: no points, no stats.'}
+                  : opponent === 'anyone'
+                    ? 'Anyone = the next human in the server queue at your difficulty. Real players only — no bots, no invented opponents.'
+                    : 'KERN = the house bot. A full duel through the same engine — practice only: no points, no stats.'}
               </p>
             </div>
 
@@ -230,8 +359,9 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
                     type="button"
                     onClick={() => setDifficulty(d.value)}
                     aria-pressed={difficulty === d.value}
+                    disabled={searching}
                     title={d.hint}
-                    className={`flex min-h-11 items-center justify-center border px-1 font-mono text-xs font-bold uppercase tracking-[0.08em] transition-colors ${
+                    className={`flex min-h-11 items-center justify-center border px-1 font-mono text-xs font-bold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                       difficulty === d.value
                         ? 'border-accent bg-accent text-carbon'
                         : 'border-carbon/20 bg-transparent text-carbon hover:bg-sand'
@@ -258,7 +388,7 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
             </dl>
 
             <p className="mt-auto pt-6 font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
-              Matched by invite / decided by the server
+              Matched by invite or queue / decided by the server
             </p>
           </section>
 
@@ -277,12 +407,22 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
                 id="your-match-heading"
                 className="mt-3 break-words font-headline text-[clamp(2rem,3.6vw,3.25rem)] font-extrabold uppercase leading-[0.95] tracking-[-0.02em] text-carbon"
               >
-                {opponent === 'bot' ? 'Kern awaits.' : `${firstName}’s duel.`}
+                {opponent === 'bot'
+                  ? 'Kern awaits.'
+                  : opponent === 'anyone'
+                    ? searching
+                      ? 'Searching.'
+                      : 'Anyone in?'
+                    : `${firstName}’s duel.`}
               </h2>
               <p className="mt-3 max-w-md font-grotesk text-sm leading-relaxed text-muted">
                 {opponent === 'bot'
                   ? `You get the same problem and the same ${MATCH_MINUTES}-minute clock as KERN. It solves at a human pace — sometimes it beats you. Practice duel: no points move.`
-                  : 'Create a room and send the invite code to a friend — or paste a code you were sent. You both ready up, the host starts, and the clock decides the rest.'}
+                  : opponent === 'anyone'
+                    ? searching
+                      ? 'The server is holding your spot and will pair you with the next waiting human. Keep this tab open — leaving cancels the search.'
+                      : 'Join the real queue and the server pairs you with the next waiting human at your difficulty. No fake opponents: if nobody is waiting, you wait or cancel.'
+                    : 'Create a room and send the invite code to a friend — or paste a code you were sent. You both ready up, the host starts, and the clock decides the rest.'}
               </p>
 
               <div className="mt-5">
@@ -295,6 +435,56 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
                   >
                     {pending === 'bot' ? 'Seating KERN…' : 'Play vs KERN'}
                   </button>
+                ) : opponent === 'anyone' ? (
+                  searching ? (
+                    <div className="border border-carbon/25 bg-cream/80">
+                      <div className="flex items-center justify-between gap-3 border-b border-line-light px-4 py-3">
+                        <span className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-carbon">
+                          <span aria-hidden className="inline-block h-1.5 w-1.5 bg-accent" />
+                          Search live
+                        </span>
+                        <span className="font-mono text-sm font-bold tabular-nums text-carbon" aria-label="Elapsed search time">
+                          {formatElapsed(elapsed)}
+                        </span>
+                      </div>
+                      <div className="px-4 py-4">
+                        <p
+                          role="status"
+                          className="font-grotesk text-sm leading-relaxed text-muted"
+                        >
+                          {waiting === 0
+                            ? 'You are the only player waiting right now. Stay in queue for the next arrival.'
+                            : `${waiting} other ${waiting === 1 ? 'player is' : 'players are'} waiting. Pairing is automatic at your difficulty.`}
+                        </p>
+                        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.1em] text-muted">
+                          Difficulty · {searchDifficulty ?? 'ANY'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={cancelSearch}
+                          disabled={pending === 'cancel'}
+                          className="mt-4 flex min-h-12 w-full items-center justify-center border border-carbon px-5 py-3 font-mono text-xs font-bold uppercase tracking-[0.1em] text-carbon transition-colors hover:bg-carbon hover:text-cream disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {pending === 'cancel' ? 'Cancelling…' : 'Cancel search'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={startSearch}
+                        disabled={creating}
+                        className="flex min-h-14 w-full items-center justify-center bg-accent px-6 py-4 font-mono text-sm font-bold uppercase tracking-[0.15em] text-carbon transition-colors hover:bg-[#ff6231] disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {pending === 'search' ? 'Joining queue…' : 'Find a Match'}
+                      </button>
+                      <p className="mt-3 font-grotesk text-xs leading-relaxed text-muted">
+                        Uses your difficulty filter. The queue is shared by every signed-in player on
+                        this server.
+                      </p>
+                    </>
+                  )
                 ) : (
                   <>
                     <button

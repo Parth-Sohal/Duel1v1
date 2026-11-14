@@ -17,6 +17,7 @@ import { createBotMatch } from '../services/bots.js';
 import { issueSocketToken } from '../services/gateway.js';
 import { allowRoomOp, allowBotDuel, allowSocketToken } from '../services/rate-limit.js';
 import { recordEvent } from '../services/events.js';
+import { matchmakingQueue } from '../services/matchmaking.js';
 
 /**
  * F05 friend-room REST routes (docs/features/F05-friend-rooms.md), all
@@ -29,6 +30,14 @@ type DuelDeps = {
 };
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
+
+/** Unknown/missing difficulty is ANY, mirroring the room and bot routes. */
+function parseDifficulty(body: unknown): (typeof DIFFICULTIES)[number] | null {
+  const value = (body as { difficulty?: unknown } | null)?.difficulty;
+  return typeof value === 'string' && (DIFFICULTIES as readonly string[]).includes(value)
+    ? (value as (typeof DIFFICULTIES)[number])
+    : null;
+}
 
 export async function duelRoutes(app: FastifyInstance, opts: DuelDeps): Promise<void> {
   const { db } = opts;
@@ -118,6 +127,35 @@ export async function duelRoutes(app: FastifyInstance, opts: DuelDeps): Promise<
       return reply.code(429).send({ error: 'rate_limited', message: 'Too many socket handshakes — reconnect in a minute.' });
     }
     return issueSocketToken(request.user!.id);
+  });
+
+  /**
+   * F09 matchmaking: join/refresh the human queue. Idempotent — one entry per
+   * player. The one-live-duel guard runs again inside the pairing pass, so a
+   * stale queue entry can never start a second match.
+   */
+  app.post('/duels/matchmaking', auth, async (request, reply) => {
+    if (!allowRoomOp(request.user!.id)) {
+      return reply.code(429).send({ error: 'rate_limited', message: 'Too many queue actions — slow down a little.' });
+    }
+    if (await activeMatchFor(db, request.user!.id)) {
+      return reply.code(409).send({ error: 'already_in_match' });
+    }
+    return matchmakingQueue.enqueue(request.user!.id, parseDifficulty(request.body), Date.now());
+  });
+
+  /**
+   * Status + heartbeat. Clients poll this every couple of seconds; the touch
+   * is what keeps an entry alive, so a closed tab cannot hold a queue slot.
+   */
+  app.get('/duels/matchmaking', auth, async (request) => {
+    return matchmakingQueue.status(request.user!.id, Date.now());
+  });
+
+  /** Leave the queue (waiting or matched). Idempotent and never rate-limited. */
+  app.delete('/duels/matchmaking', auth, async (request) => {
+    matchmakingQueue.cancel(request.user!.id);
+    return { ok: true };
   });
 
   /** POST /duels/bot — one-click duel vs KERN (F08): creates room + seats the
