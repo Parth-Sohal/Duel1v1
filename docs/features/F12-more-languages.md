@@ -117,6 +117,7 @@ use v2.
 | Editor tokenizer + pairing | `npx tsx apps/web/scripts/f12-editor-check.ts` | **20/20** |
 | Version upgrade plan | `npx tsx scripts/f12-upgrade-versions.ts` | **40 planned, 0 missing** |
 | Version upgrade applied | `npx tsx scripts/f12-upgrade-versions.ts --apply` | **40 v2 versions created** |
+| Production smoke after deploy | `npx tsx scripts/f12-prod-smoke.ts` | **12/12** — v2 served, Java submit 5/5 accepted, C++ run accepted, hidden results sealed |
 | Server build | `npm run build --workspace apps/server` | pass |
 | Web typecheck / lint / build | `npx tsc --noEmit`, `npm run lint`, `npm run build` in `apps/web` | pass |
 
