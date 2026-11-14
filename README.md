@@ -249,6 +249,7 @@ cd apps/server
 npx tsx scripts/challenge-verify.ts        # every published challenge × 4 languages through real Judge0
 npx tsx scripts/f12-verify.ts              # F12: Java + C++ references on every stored test
 npx tsx scripts/f12-upgrade-versions.ts    # F12: dry-run the four-language version upgrade
+npx tsx scripts/f12-prod-smoke.ts          # F12: live deploy serves v2 and judges Java/C++
 npx tsx scripts/f09-matchmaking-test.ts    # queue, pairing, repeat rule, leaderboard
 cd ../..
 npx tsx apps/web/scripts/f12-editor-check.ts  # F12: tokenizer, keyword hues, auto-pairing
