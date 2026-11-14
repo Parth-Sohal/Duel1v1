@@ -1,8 +1,17 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
-import { LANGUAGES, MAX_CODE_LENGTH, type Language } from '@coding-arena/shared';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  LANGUAGES,
+  LANGUAGE_LABELS,
+  MAX_CODE_LENGTH,
+  RUN_TIME_LIMIT_MS,
+  RUN_TIME_MULTIPLIERS,
+  type Language,
+} from '@coding-arena/shared';
 import type { ChallengeDetail, VisibleTest } from '../lib/practice';
+import { keyEdit } from '../lib/editor';
+import { tokenClass, tokenize } from '../lib/highlight';
 import { AiAnalyze } from './AiReview';
 
 /**
@@ -30,8 +39,6 @@ type RunOutcome = {
   total: number;
   results: TestResult[];
 };
-
-const LANGUAGE_LABELS: Record<Language, string> = { javascript: 'JS', python: 'PY' };
 
 /** The match-finish payload the duel submit endpoint may include. */
 export type MatchOutcome = {
@@ -68,15 +75,39 @@ export function CodePanel({
   const [language, setLanguage] = useState<Language>('javascript');
   // Per-language scratchpads: switching languages never loses typed code.
   const [code, setCode] = useState<Record<Language, string>>(() => ({
-    javascript: challenge.starterCode.javascript,
-    python: challenge.starterCode.python,
+    javascript: challenge.starterCode.javascript ?? '',
+    python: challenge.starterCode.python ?? '',
+    java: challenge.starterCode.java ?? '',
+    cpp: challenge.starterCode.cpp ?? '',
   }));
   const [outcome, setOutcome] = useState<RunOutcome | null>(null);
   const [busy, setBusy] = useState<null | 'run' | 'submit'>(null);
   const [error, setError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
 
   const source = code[language];
   const overLimit = source.length > MAX_CODE_LENGTH;
+  const tokens = useMemo(() => tokenize(source, language), [source, language]);
+  const available = useMemo(
+    () => LANGUAGES.filter((lang) => !!challenge.entryFunctions[lang] && typeof challenge.starterCode[lang] === 'string'),
+    [challenge.entryFunctions, challenge.starterCode],
+  );
+  const cpuSeconds = (RUN_TIME_LIMIT_MS * RUN_TIME_MULTIPLIERS[language]) / 1000;
+
+  /** Apply a text edit and restore the caret/selection after React commits. */
+  const applyEdit = useCallback(
+    (next: string, selectionStart: number, selectionEnd: number) => {
+      setCode((current) => ({ ...current, [language]: next }));
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.selectionStart = selectionStart;
+        el.selectionEnd = selectionEnd;
+      });
+    },
+    [language],
+  );
 
   const setLanguageAndKeep = (lang: Language) => {
     setLanguage(lang);
@@ -119,16 +150,25 @@ export function CodePanel({
   );
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key !== 'Tab') return;
-    e.preventDefault();
     const el = e.currentTarget;
-    const { selectionStart, selectionEnd } = el;
-    const next = `${source.slice(0, selectionStart)}  ${source.slice(selectionEnd)}`;
-    setCode((c) => ({ ...c, [language]: next }));
-    requestAnimationFrame(() => {
-      el.selectionStart = selectionStart + 2;
-      el.selectionEnd = selectionStart + 2;
+    const edit = keyEdit({
+      source,
+      start: el.selectionStart,
+      end: el.selectionEnd,
+      key: e.key,
+      language,
     });
+    if (!edit) return;
+    e.preventDefault();
+    applyEdit(edit.next, edit.selectionStart, edit.selectionEnd);
+  };
+
+  /** Keep the highlight layer aligned when the textarea scrolls. */
+  const syncScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    const pre = highlightRef.current;
+    if (!pre) return;
+    pre.scrollTop = e.currentTarget.scrollTop;
+    pre.scrollLeft = e.currentTarget.scrollLeft;
   };
 
   const banner = useMemo(() => {
@@ -161,34 +201,54 @@ export function CodePanel({
           <span aria-hidden className="inline-block h-1.5 w-3.5 bg-accent" />
           Workbench
         </p>
-        {/* Language chips — JS / PY */}
+        {/* Language chips — JS / PY / JAVA / C++ */}
         <div className="flex gap-2">
-          {LANGUAGES.map((lang) => (
-            <button
-              key={lang}
-              type="button"
-              onClick={() => setLanguageAndKeep(lang)}
-              aria-pressed={language === lang}
-              className={`px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-[0.1em] transition-colors ${
-                language === lang
-                  ? 'bg-accent text-carbon'
-                  : 'border border-line-dark bg-surface text-neutral-300 hover:text-cream'
-              }`}
-            >
-              {LANGUAGE_LABELS[lang]}
-            </button>
-          ))}
+          {LANGUAGES.map((lang) => {
+            const enabled = available.includes(lang);
+            return (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => setLanguageAndKeep(lang)}
+                aria-pressed={language === lang}
+                disabled={!enabled}
+                title={enabled ? undefined : `${LANGUAGE_LABELS[lang]} is not available for this challenge yet`}
+                className={`px-3 py-1.5 font-mono text-xs font-bold uppercase tracking-[0.1em] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                  language === lang
+                    ? 'bg-accent text-carbon'
+                    : 'border border-line-dark bg-surface text-neutral-300 hover:text-cream'
+                }`}
+              >
+                {LANGUAGE_LABELS[lang]}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="border border-line-dark bg-surface">
+      <div className="relative border border-line-dark bg-surface">
+        {/* Dependency-free syntax highlight layer; the textarea sits on top. */}
+        <pre
+          ref={highlightRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words p-4 font-mono text-sm leading-relaxed"
+        >
+          {tokens.map((token, i) => (
+            <span key={i} className={tokenClass(token.kind, language)}>
+              {token.text}
+            </span>
+          ))}
+          {'\n'}
+        </pre>
         <textarea
+          ref={textareaRef}
           value={source}
           onChange={(e) => setCode((c) => ({ ...c, [language]: e.target.value }))}
           onKeyDown={onKeyDown}
+          onScroll={syncScroll}
           spellCheck={false}
           aria-label={`Code editor — ${language}`}
-          className="block h-72 w-full resize-y bg-transparent p-4 font-mono text-sm leading-relaxed text-cream outline-none sm:h-80"
+          className="relative block h-72 w-full resize-y break-words bg-transparent p-4 font-mono text-sm leading-relaxed text-transparent caret-cream outline-none selection:bg-accent/30 sm:h-80"
         />
       </div>
 
@@ -210,7 +270,7 @@ export function CodePanel({
           {busy === 'submit' ? 'Judging…' : 'Submit'}
         </button>
         <span className="font-mono text-[11px] tracking-[0.05em] text-neutral-500">
-          {LANGUAGE_LABELS[language]} · 5s CPU · 256 MB
+          {LANGUAGE_LABELS[language]} · {cpuSeconds}s CPU · 256 MB
         </span>
       </div>
 

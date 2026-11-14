@@ -36,7 +36,7 @@ Sign in → pick a mode (practice / friend duel / bot) → get a challenge
 | Time up, nobody solved | Draw, no point change |
 | Disconnect | 30-second grace period, then forfeit |
 | Repeat rule | A challenge played recently is avoided if others are available |
-| Languages (launch) | JavaScript and Python (C++ and Java later) |
+| Languages | JavaScript, Python, Java, C++ (F12) |
 | AI feedback | Complexity estimate and suggestions, limited per user per day |
 
 These are defaults. Changes are recorded in `docs/decisions/`.

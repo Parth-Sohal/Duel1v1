@@ -6,7 +6,7 @@ Two players get the same coding challenge and race to solve it in 10 minutes. Th
 
 ## What players can do
 
-- **Practice** — 40 hand-checked challenges in JavaScript and Python, run or submit through Judge0, with sample-test feedback while hidden tests stay server-side.
+- **Practice** — 40 hand-checked challenges in JavaScript, Python, Java and C++, run or submit through Judge0, with sample-test feedback while hidden tests stay server-side.
 - **Friend duels** — create a room, share an 8-character invite code, ready up, and play a live 1v1 with server-owned time.
 - **Anyone matchmaking** — join the real queue and the server pairs you with the next compatible human. No bots, no invented opponents.
 - **KERN bot** — practice against the house bot through the same match engine. Bot duels move no points and count no stats.
@@ -104,12 +104,12 @@ POST /api/challenges/:slug/run|submit
   → validate size and rate limit
   → load challenge version + tests
   → batch to Judge0
-  → compare returned values (JS JSON.stringify ≡ Python tight json.dumps)
+  → compare returned values (JS JSON.stringify ≡ Python tight json.dumps ≡ Java/C++ harness JSON)
   → visible tests: input/expected/actual shown
   → hidden tests: only "test N of M failed"
 ```
 
-Player code is wrapped in a function-call harness: the player writes a named function and returns the answer, and the harness calls it with JSON arguments. Code runs only in the Judge0 sandbox with CPU, memory, process, and output limits; network access is blocked.
+Player code is wrapped in a function-call harness: the player writes a named function and returns the answer, and the harness calls it with JSON arguments. Java and C++ use a typed signature (numbers are 64-bit `long` / `long long`) but the same JSON contract. Code runs only in the Judge0 sandbox with CPU, memory, process, and output limits; network access is blocked.
 
 ### Leaderboard
 
@@ -218,7 +218,7 @@ Full schema and rules: [`docs/data-model.md`](docs/data-model.md).
    npx tsx scripts/f04-publish.ts all
    ```
 
-   The loader freezes each reference solution through Judge0, verifies JavaScript and Python agree, and inserts new slugs only — re-running it is safe and leaves existing challenges and submissions untouched.
+   The loader freezes each reference solution through Judge0, verifies all four language references agree, and inserts new slugs only — re-running it is safe and leaves existing challenges and submissions untouched.
 
 ## Run locally
 
@@ -246,8 +246,12 @@ Feature gates live in `apps/server/scripts/` and are run from that folder, for e
 
 ```bash
 cd apps/server
-npx tsx scripts/challenge-verify.ts        # every published challenge through real Judge0
+npx tsx scripts/challenge-verify.ts        # every published challenge × 4 languages through real Judge0
+npx tsx scripts/f12-verify.ts              # F12: Java + C++ references on every stored test
+npx tsx scripts/f12-upgrade-versions.ts    # F12: dry-run the four-language version upgrade
 npx tsx scripts/f09-matchmaking-test.ts    # queue, pairing, repeat rule, leaderboard
+cd ../..
+npx tsx apps/web/scripts/f12-editor-check.ts  # F12: tokenizer, keyword hues, auto-pairing
 ```
 
 ## Documentation

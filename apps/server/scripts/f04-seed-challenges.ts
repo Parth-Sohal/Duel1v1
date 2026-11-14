@@ -1,9 +1,9 @@
 ﻿/**
  * F04 seed loader: takes the CHALLENGES definitions from seed-data.ts, FREEZES
- * the expected answers by running each reference solution (JavaScript AND
- * Python) through Judge0 with the real function-call harness, verifies both
- * languages agree, then inserts into the DB as UNPUBLISHED (owner signs off
- * before we publish).
+ * the expected answers by running each reference solution (JavaScript, Python,
+ * Java AND C++ — F12) through Judge0 with the real function-call harness,
+ * verifies all four languages agree, then inserts into the DB as UNPUBLISHED
+ * (owner signs off before we publish).
  *
  * Safe to re-run at any time: slugs already in the DB are skipped untouched
  * (published challenges have real player submissions — deleting them would
@@ -20,7 +20,8 @@ import { inArray } from 'drizzle-orm';
 import { createDb } from '../src/db/index.js';
 import { challengeVersions, challenges } from '../src/db/schema.js';
 import { answerOf, composeSource, runOnce } from '../src/services/judge.js';
-import { CHALLENGES, type SeedChallenge, type SeedTest } from './seed-data.js';
+import { CHALLENGES, type FourLanguageSeed, type SeedTest } from './seed-data.js';
+import { LANGUAGES, type Language } from '@coding-arena/shared';
 
 /** Worker-pool map with bounded concurrency (Judge0 public endpoint allows a few req/s per IP). */
 async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -38,7 +39,7 @@ async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise
 
 const db = createDb(process.env.DATABASE_URL!).db;
 
-type Frozen = SeedChallenge & { tests: Array<SeedTest & { expected: string }> };
+type Frozen = Omit<FourLanguageSeed, 'tests'> & { tests: Array<SeedTest & { expected: string }> };
 
 /**
  * Authoring-time judge run: the shared public endpoint intermittently fails
@@ -46,7 +47,7 @@ type Frozen = SeedChallenge & { tests: Array<SeedTest & { expected: string }> };
  * get a generous 10 s CPU budget and up to 3 attempts. Player runs do NOT
  * get this - the route uses runOnce with the challenge's real limits.
  */
-async function authoringRun(opts: { language: 'javascript' | 'python'; sourceCode: string; stdin: string }) {
+async function authoringRun(opts: { language: Language; sourceCode: string; stdin: string }) {
   let last;
   for (let attempt = 1; attempt <= 3; attempt++) {
     last = await runOnce({ ...opts, timeLimitMs: 10_000 });
@@ -56,14 +57,15 @@ async function authoringRun(opts: { language: 'javascript' | 'python'; sourceCod
   return last!;
 }
 
-async function freezeAndVerify(list: SeedChallenge[]): Promise<Frozen[]> {
-  type Task = { c: number; t: number; lang: 'javascript' | 'python'; source: string; stdin: string };
+async function freezeAndVerify(list: FourLanguageSeed[]): Promise<Frozen[]> {
+  type Task = { c: number; t: number; lang: Language; source: string; stdin: string };
   const tasks: Task[] = [];
   list.forEach((c, ci) =>
     c.tests.forEach((t, ti) => {
       const stdin = JSON.stringify(t.args);
-      tasks.push({ c: ci, t: ti, lang: 'javascript', source: composeSource('javascript', c.reference.javascript, c.entryFunctions.javascript), stdin });
-      tasks.push({ c: ci, t: ti, lang: 'python', source: composeSource('python', c.reference.python, c.entryFunctions.python), stdin });
+      for (const lang of LANGUAGES) {
+        tasks.push({ c: ci, t: ti, lang, source: composeSource(lang, c.reference[lang], c.entryFunctions[lang]), stdin });
+      }
     }),
   );
 
@@ -86,7 +88,7 @@ async function freezeAndVerify(list: SeedChallenge[]): Promise<Frozen[]> {
     if (seen === undefined) {
       expected[task.c].set(task.t, answer);
     } else if (seen !== answer) {
-      console.log(`FAIL ${label}: JS and Python disagree\n  js:     ${JSON.stringify(seen)}\n  python: ${JSON.stringify(answer)}`);
+      console.log(`FAIL ${label}: references disagree\n  first: ${JSON.stringify(seen)}\n  ${task.lang}: ${JSON.stringify(answer)}`);
       fails++;
     }
   }
@@ -134,7 +136,7 @@ async function insert(frozen: Frozen[]): Promise<void> {
         statement: c.statement,
         entryFunctions: c.entryFunctions,
         starterCode: c.starterCode,
-        timeLimitMs: 5000, // JS base; the judge applies the Python multiplier
+        timeLimitMs: 5000, // JS base; the judge applies the per-language multiplier
         memoryLimitMb: 256,
         tests: c.tests.map((t) => ({ args: t.args, expected: t.expected, hidden: t.hidden })),
       });

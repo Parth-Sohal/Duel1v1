@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Socket } from 'socket.io-client';
+import { entryName } from '@coding-arena/shared';
 import { CodePanel, SampleTests, type MatchOutcome } from './CodePanel';
 import { Chip, Eyebrow, Headline } from './ui';
 import { Avatar } from './Avatar';
@@ -269,7 +270,7 @@ export function MatchWorkbench({ matchId, myUserId }: { matchId: string; myUserI
             </p>
           ))}
         </div>
-        <SampleTests tests={match.challenge.visibleTests} entryFunction={match.challenge.entryFunctions.javascript} />
+        <SampleTests tests={match.challenge.visibleTests} entryFunction={entryName(match.challenge.entryFunctions.javascript)} />
         <p className="mt-10 font-mono text-[11px] uppercase tracking-[0.1em] text-muted">
           Same problem, same clock. First accepted submission wins the swing.
         </p>

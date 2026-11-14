@@ -47,7 +47,7 @@ export const submissionStatusEnum = pgEnum('submission_status', [
 ]);
 
 /** Practice-mode languages (decision D3). */
-export const languageEnum = pgEnum('language', ['javascript', 'python']);
+export const languageEnum = pgEnum('language', ['javascript', 'python', 'java', 'cpp']);
 
 /** Players (docs/data-model.md §4). email/google_id stay on the server; never public. */
 export const users = pgTable('users', {
@@ -136,8 +136,8 @@ export const challengeVersions = pgTable('challenge_versions', {
   challengeId: uuid('challenge_id').notNull().references(() => challenges.id, { onDelete: 'cascade' }),
   version: integer('version').notNull(),
   statement: text('statement').notNull(),
-  entryFunctions: jsonb('entry_functions').notNull(), // { javascript, python } — function the player must write
-  starterCode: jsonb('starter_code').notNull(), // { javascript, python }
+  entryFunctions: jsonb('entry_functions').notNull(), // { javascript, python, java, cpp } — function the player must write (F12: typed signatures for static languages)
+  starterCode: jsonb('starter_code').notNull(), // { javascript, python, java, cpp }
   timeLimitMs: integer('time_limit_ms').notNull(),
   memoryLimitMb: integer('memory_limit_mb').notNull(),
   tests: jsonb('tests').notNull(), // { args, expected, hidden }[] — args are the function's call arguments

@@ -14,13 +14,14 @@ import { and, eq } from 'drizzle-orm';
 import { createDb } from '../src/db/index.js';
 import { challengeVersions, challenges } from '../src/db/schema.js';
 import { answerOf, composeSource, runOnce } from '../src/services/judge.js';
-import { CHALLENGES, type SeedChallenge } from './seed-data.js';
+import { CHALLENGES, type FourLanguageSeed } from './seed-data.js';
+import { LANGUAGES, type Language } from '@coding-arena/shared';
 
 /**
  * Authoring-style run: generous CPU budget, up to 3 attempts at the flaky
  * public endpoint.
  */
-async function authoringRun(opts: { language: 'javascript' | 'python'; sourceCode: string; stdin: string }) {
+async function authoringRun(opts: { language: Language; sourceCode: string; stdin: string }) {
   let last;
   for (let attempt = 1; attempt <= 3; attempt++) {
     last = await runOnce({ ...opts, timeLimitMs: 10_000 });
@@ -55,7 +56,7 @@ async function main(): Promise<void> {
 
   console.log(`published pool: ${published.length} challenge(s) — verifying references through the real judge`);
 
-  const bySlug = new Map<string, SeedChallenge>(CHALLENGES.map((c) => [c.slug, c]));
+  const bySlug = new Map<string, FourLanguageSeed>(CHALLENGES.map((c) => [c.slug, c]));
   let poolFailures = 0;
 
   for (const pub of published) {
@@ -81,11 +82,10 @@ async function main(): Promise<void> {
 
     const tests = row.tests as Array<{ args: unknown[]; expected: string; hidden: boolean }>;
 
-    type Task = { lang: 'javascript' | 'python'; i: number; args: unknown[] };
-    const tasks: Task[] = tests.flatMap((t, i) => [
-      { lang: 'javascript' as const, i, args: t.args },
-      { lang: 'python' as const, i, args: t.args },
-    ]);
+    type Task = { lang: Language; i: number; args: unknown[] };
+    const tasks: Task[] = tests.flatMap((t, i) =>
+      LANGUAGES.map((lang) => ({ lang, i, args: t.args })),
+    );
     const runs = await mapPool(tasks, 2, (t) =>
       authoringRun({
         language: t.lang,
@@ -111,7 +111,7 @@ async function main(): Promise<void> {
     });
 
     if (bad === 0) {
-      console.log(`PASS ${label} — ${tests.length} tests × 2 languages, all match the frozen answers`);
+      console.log(`PASS ${label} — ${tests.length} tests × ${LANGUAGES.length} languages, all match the frozen answers`);
     } else {
       poolFailures++;
     }
