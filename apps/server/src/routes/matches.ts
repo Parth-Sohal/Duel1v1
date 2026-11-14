@@ -17,7 +17,7 @@ import {
   submissions,
   users,
 } from '../db/schema.js';
-import { getChallengeWithVersion, redactResults, visibleTests, type TestCase } from '../services/challenges.js';
+import { entryFunctionsOf, getChallengeWithVersion, redactResults, visibleTests, type TestCase } from '../services/challenges.js';
 import { judgeLoop, parseSubmissionBody } from '../services/judging.js';
 import { allowJudgeSubmission } from '../services/rate-limit.js';
 import { finishMatch, getMatchWithPlayers, type Outcome } from '../services/matches.js';
@@ -34,15 +34,6 @@ import { recordEvent } from '../services/events.js';
 type MatchDeps = {
   db: Database;
 };
-
-/** The per-language entry-function names ({ javascript, python }) from a version row. */
-function entryFunctionsOf(v: { entryFunctions: unknown }): { javascript: string; python: string } {
-  const e = (v.entryFunctions ?? {}) as { javascript?: unknown; python?: unknown };
-  return {
-    javascript: typeof e.javascript === 'string' ? e.javascript : '',
-    python: typeof e.python === 'string' ? e.python : '',
-  };
-}
 
 export async function matchRoutes(app: FastifyInstance, opts: MatchDeps): Promise<void> {
   const { db } = opts;

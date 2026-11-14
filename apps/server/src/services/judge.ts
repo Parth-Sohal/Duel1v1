@@ -1,6 +1,14 @@
-import type { Language } from '@coding-arena/shared';
-import { JUDGE0_LANGUAGE_IDS, RUN_MEMORY_LIMIT_MB, RUN_TIME_LIMIT_MS, RUN_TIME_MULTIPLIER_PY } from '@coding-arena/shared';
+import type { EntryPoint, FunctionParamType, Language } from '@coding-arena/shared';
+import {
+  JUDGE0_LANGUAGE_IDS,
+  RUN_MEMORY_LIMIT_MB,
+  RUN_TIME_LIMIT_MS,
+  RUN_TIME_MULTIPLIERS,
+  entryName,
+  entrySignature,
+} from '@coding-arena/shared';
 import { env } from '../config/env.js';
+import { CPP_PRELUDE, JAVA_PRELUDE, JAVA_SUPPORT } from './judge-harness.js';
 
 /**
  * Judge0 client (docs/features/F04-practice-mode.md). The server is the only
@@ -50,9 +58,9 @@ export type JudgeRun = {
   memoryKb: number;
 };
 
-/** Per-language CPU limit (PLAN F3: per-language time multiplier). */
-function timeLimitMsFor(language: Language): number {
-  return language === 'python' ? Math.round(RUN_TIME_LIMIT_MS * RUN_TIME_MULTIPLIER_PY) : RUN_TIME_LIMIT_MS;
+/** Per-language CPU limit (PLAN F3/F12: per-language time multiplier). */
+export function timeLimitMsFor(language: Language, baseMs = RUN_TIME_LIMIT_MS): number {
+  return Math.round(baseMs * RUN_TIME_MULTIPLIERS[language]);
 }
 
 /** Judge0 compares loosely; we compare exactly, modulo trailing whitespace. */
@@ -155,15 +163,79 @@ export async function runOnce(opts: {
  * Serialization contract (must match across languages):
  * - JS  : JSON.stringify(value)
  * - PY  : json.dumps(value, separators=(',', ':'), ensure_ascii=False)
- * Both produce identical JSON for numbers / strings / arrays / booleans / null.
+ * - Java: Long/String/boolean/array serializers in judge-harness.ts
+ * - C++ : arena::encode in judge-harness.ts
+ * All produce identical JSON for numbers / strings / arrays / booleans / null.
  * The last non-empty stdout line is the answer, so stray prints don't break it.
+ * Java and C++ receive a typed entry signature (F12) so the wrapper knows the
+ * player function's parameter and return types.
  */
-export function composeSource(language: Language, userCode: string, entryFunction: string): string {
+export function composeSource(language: Language, userCode: string, entry: EntryPoint): string {
+  const entryFunction = entryName(entry);
   if (language === 'javascript') {
     return `${userCode}\nif (typeof ${entryFunction} !== 'function') { throw new Error('define the function ${entryFunction}(…)'); }\nconst __args = JSON.parse(require('fs').readFileSync(0, 'utf8'));\nprocess.stdout.write(JSON.stringify(${entryFunction}.apply(null, __args)));\n`;
   }
-  return `${userCode}\nimport json as __json, sys as __sys\n__args = __json.loads(__sys.stdin.read())\n__fn = globals().get('${entryFunction}')\nif not callable(__fn):\n    raise SystemExit('define the function ${entryFunction}(…)')\nprint(__json.dumps(__fn(*__args), separators=(',', ':'), ensure_ascii=False))\n`;
+  if (language === 'python') {
+    return `${userCode}\nimport json as __json, sys as __sys\n__args = __json.loads(__sys.stdin.read())\n__fn = globals().get('${entryFunction}')\nif not callable(__fn):\n    raise SystemExit('define the function ${entryFunction}(…)')\nprint(__json.dumps(__fn(*__args), separators=(',', ':'), ensure_ascii=False))\n`;
+  }
+
+  const signature = entrySignature(entry);
+  if (!signature) {
+    throw new Error(`missing typed signature for ${language} entry point ${entryFunction}`);
+  }
+
+  if (language === 'cpp') {
+    const args = signature.params
+      .map((type, i) => `${CPP_CONVERTERS[type]}(__args.items.at(${i}))`)
+      .join(', ');
+    return `${CPP_PRELUDE}\n${userCode}\n\nint main() {\n  std::ios::sync_with_stdio(false);\n  std::cin.tie(nullptr);\n  std::string __raw((std::istreambuf_iterator<char>(std::cin)), std::istreambuf_iterator<char>());\n  arena::Val __args = arena::parseArgs(__raw);\n  ${CPP_TYPES[signature.returns]} __result = ${entryFunction}(${args});\n  std::cout << arena::encode(__result);\n  return 0;\n}\n`;
+  }
+
+  const args = signature.params
+    .map((type, i) => `${JAVA_CONVERTERS[type]}(__args.items.get(${i}))`)
+    .join(', ');
+  return `${JAVA_PRELUDE}\n${userCode}\n\npublic class Main {\n${JAVA_SUPPORT}\n\n  public static void main(String[] __argv) throws Exception {\n    String __raw = new String(System.in.readAllBytes(), StandardCharsets.UTF_8);\n    Val __args = new Parser(__raw).parse();\n    if (__args.kind != Val.ARR) throw new RuntimeException("arguments must be an array");\n    ${JAVA_TYPES[signature.returns]} __result = Solution.${entryFunction}(${args});\n    System.out.print(out(__result));\n  }\n}\n`;
 }
+
+/** Java type for a harness signature (every number is a 64-bit long). */
+const JAVA_TYPES: Record<FunctionParamType, string> = {
+  number: 'long',
+  string: 'String',
+  boolean: 'boolean',
+  'number[]': 'long[]',
+  'string[]': 'String[]',
+  'number[][]': 'long[][]',
+};
+
+/** Java converter for one parsed argument. */
+const JAVA_CONVERTERS: Record<FunctionParamType, string> = {
+  number: 'asNum',
+  string: 'asStr',
+  boolean: 'asBool',
+  'number[]': 'asNums',
+  'string[]': 'asStrs',
+  'number[][]': 'asMatrix',
+};
+
+/** C++ type for a harness signature (every number is a 64-bit long long). */
+const CPP_TYPES: Record<FunctionParamType, string> = {
+  number: 'long long',
+  string: 'std::string',
+  boolean: 'bool',
+  'number[]': 'std::vector<long long>',
+  'string[]': 'std::vector<std::string>',
+  'number[][]': 'std::vector<std::vector<long long>>',
+};
+
+/** C++ converter for one parsed argument. */
+const CPP_CONVERTERS: Record<FunctionParamType, string> = {
+  number: 'arena::asNum',
+  string: 'arena::asStr',
+  boolean: 'arena::asBool',
+  'number[]': 'arena::asNums',
+  'string[]': 'arena::asStrs',
+  'number[][]': 'arena::asMatrix',
+};
 
 /** The answer line: the LAST non-empty stdout line (player prints are tolerated). */
 export function answerOf(stdout: string): string {

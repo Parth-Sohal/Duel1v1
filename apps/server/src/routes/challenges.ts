@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from './auth.js';
 import type { Database } from '../db/index.js';
 import {
+  entryFunctionsOf,
   getChallengeWithVersion,
   listForPlayer,
   listOwnSubmissions,
@@ -20,15 +21,6 @@ import { recordEvent } from '../services/events.js';
 type ChallengeDeps = {
   db: Database;
 };
-
-/** The per-language entry-function names ({ javascript, python }) from a version row. */
-function entryFunctionsOf(v: { entryFunctions: unknown }): { javascript: string; python: string } {
-  const e = (v.entryFunctions ?? {}) as { javascript?: unknown; python?: unknown };
-  return {
-    javascript: typeof e.javascript === 'string' ? e.javascript : '',
-    python: typeof e.python === 'string' ? e.python : '',
-  };
-}
 
 /**
  * F04 practice routes (docs/features/F04-practice-mode.md). All cookie-authed.

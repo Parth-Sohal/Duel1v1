@@ -53,7 +53,7 @@ One living report for the whole project. Update it at the end of every iteration
 | 2 | Practice mode | F3 challenges, editor, run code | **Done** (2026-10-29) |
 | 3 | Friend duels | F4 rooms, F5 match engine, F6 history | **Done** (2026-10-30, owner-reviewed) |
 | 4 | Soft launch | F7 bot + daily challenge, F8 hardening | **Done** (2026-11-02, owner-signed-off) |
-| 5 | Growth | F9 matchmaking, F10 AI analysis, F11 UI polish, F12 C++ and Java | In progress — F9 + AI analysis shipped (2026-11-14 / 2026-11-13); UI polish and languages remain |
+| 5 | Growth | F9 matchmaking, F10 AI analysis, F11 UI polish, F12 C++ and Java | In progress — F9 + AI analysis + F12 languages shipped (2026-11-14 / 2026-11-13); UI polish remains |
 
 ## 5. Iteration reports
 

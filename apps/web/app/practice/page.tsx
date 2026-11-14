@@ -115,8 +115,8 @@ export default async function PracticePage() {
           </p>
 
           <div className="mb-10 grid max-w-md grid-cols-2 gap-x-8 gap-y-6">
-            <Stat label="Languages" value="JS · PY" />
-            <Stat label="CPU limit" value={`${5}s`} />
+            <Stat label="Languages" value="JS · PY · JAVA · C++" />
+            <Stat label="CPU limit" value="5s base" />
             <Stat label="Memory" value="256 MB" />
             <Stat
               label="Challenges"

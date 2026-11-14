@@ -4,6 +4,7 @@ import { requireAuth } from './auth.js';
 import type { Database } from '../db/index.js';
 import { matches, submissions } from '../db/schema.js';
 import {
+  entryFunctionsOf,
   getChallengeWithVersion,
   visibleTests,
   type TestCase,
@@ -17,7 +18,7 @@ import {
   type AiReview,
 } from '../services/ai.js';
 import { env } from '../config/env.js';
-import { AI_BURST_MAX_PER_WINDOW, AI_BURST_WINDOW_MS, AI_DAILY_LIMIT, LANGUAGES } from '@coding-arena/shared';
+import { AI_BURST_MAX_PER_WINDOW, AI_BURST_WINDOW_MS, AI_DAILY_LIMIT, LANGUAGES, entryName } from '@coding-arena/shared';
 import { recordEvent } from '../services/events.js';
 
 type AiDeps = {
@@ -134,9 +135,8 @@ export async function aiRoutes(app: FastifyInstance, opts: AiDeps): Promise<void
       }
     }
 
-    const entry = (found.version.entryFunctions ?? {}) as Record<string, unknown>;
-    const entryFunction =
-      typeof entry[parsed.language] === 'string' ? (entry[parsed.language] as string) : '';
+    const entry = entryFunctionsOf(found.version)[parsed.language];
+    const entryFunction = entryName(entry);
     const tests = visibleTests(found.version.tests) as TestCase[];
 
     let review: AiReview;
@@ -188,8 +188,8 @@ export async function aiRoutes(app: FastifyInstance, opts: AiDeps): Promise<void
     if (!found || !found.challenge.isPublished) {
       return reply.code(404).send({ error: 'challenge_not_found' });
     }
-    const entry = (found.version.entryFunctions ?? {}) as Record<string, unknown>;
-    const entryFunction = typeof entry[parsed.language] === 'string' ? (entry[parsed.language] as string) : '';
+    const entry = entryFunctionsOf(found.version)[parsed.language];
+    const entryFunction = entryName(entry);
     const tests = visibleTests(found.version.tests) as TestCase[];
     return buildPrompt({
       challengeTitle: found.challenge.title,

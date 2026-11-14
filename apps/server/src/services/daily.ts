@@ -1,6 +1,8 @@
 import { and, asc, eq, gte, sql } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import { challengeVersions, challenges, dailyChallenges, submissions } from '../db/schema.js';
+import { entryFunctionsOf } from './challenges.js';
+import type { EntryFunctions } from '@coding-arena/shared';
 
 /**
  * F09 daily challenge (docs/features/F09-daily-challenge.md). Every player
@@ -218,8 +220,8 @@ export async function dailyPayload(
     difficulty: string;
     tags: string[];
     statement: string;
-    entryFunctions: { javascript: string; python: string };
-    starterCode: { javascript: string; python: string };
+    entryFunctions: EntryFunctions;
+    starterCode: Partial<Record<string, string>>;
     timeLimitMs: number;
     visibleTests: Array<{ args: unknown[]; expected: string }>;
   };
@@ -241,7 +243,7 @@ export async function dailyPayload(
   const tests = (row.version.tests as Array<{ args: unknown[]; expected: string; hidden: boolean }>).filter(
     (t) => Array.isArray(t.args) && typeof t.expected === 'string' && !t.hidden,
   );
-  const entry = (row.version.entryFunctions ?? {}) as { javascript?: unknown; python?: unknown };
+  const entry = entryFunctionsOf(row.version);
 
   return {
     day,
@@ -251,11 +253,8 @@ export async function dailyPayload(
       difficulty: row.challenge.difficulty,
       tags: row.challenge.tags,
       statement: row.version.statement,
-      entryFunctions: {
-        javascript: typeof entry.javascript === 'string' ? entry.javascript : '',
-        python: typeof entry.python === 'string' ? entry.python : '',
-      },
-      starterCode: row.version.starterCode as { javascript: string; python: string },
+      entryFunctions: entry,
+      starterCode: row.version.starterCode as Record<string, string>,
       timeLimitMs: row.version.timeLimitMs,
       visibleTests: tests.map((t) => ({ args: t.args, expected: t.expected })),
     },

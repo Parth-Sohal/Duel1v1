@@ -1,6 +1,6 @@
-import { LANGUAGES, MAX_CODE_LENGTH, type Language } from '@coding-arena/shared';
+import { LANGUAGES, MAX_CODE_LENGTH, type EntryPoint, type Language } from '@coding-arena/shared';
 import type { TestCase } from './challenges.js';
-import { composeSource, isFunctionPass, runOnce } from './judge.js';
+import { composeSource, isFunctionPass, runOnce, timeLimitMsFor } from './judge.js';
 import { recordJudgeSubmission } from './rate-limit.js';
 
 /**
@@ -55,19 +55,23 @@ export async function judgeLoop(
   userId: string,
   language: Language,
   sourceCode: string,
-  entryFunction: string,
+  entry: EntryPoint,
   tests: TestCase[],
   limits: { timeLimitMs: number; memoryLimitMb: number },
 ): Promise<{ results: TestResult[]; aggregate: ReturnType<typeof aggregate>; latencyMs: number }> {
   const started = Date.now();
-  const composed = composeSource(language, sourceCode, entryFunction);
+  const composed = composeSource(language, sourceCode, entry);
+  // The version stores the JS base limit; the language multiplier is applied
+  // per run so Java/Python get a fair budget and a running version never
+  // changes.
+  const timeLimitMs = timeLimitMsFor(language, limits.timeLimitMs);
   const results: TestResult[] = [];
   for (const [index, test] of tests.entries()) {
     const run = await runOnce({
       language,
       sourceCode: composed,
       stdin: JSON.stringify(test.args),
-      timeLimitMs: limits.timeLimitMs,
+      timeLimitMs,
       memoryLimitMb: limits.memoryLimitMb,
     });
     results.push({

@@ -1,6 +1,7 @@
 import type { Database } from '../db/index.js';
 import { aiReviews } from '../db/schema.js';
 import { and, gte, eq, sql } from 'drizzle-orm';
+import type { Language } from '@coding-arena/shared';
 
 /**
  * F11 AI code analysis (docs/features/F11-ai-analysis.md).
@@ -11,7 +12,8 @@ import { and, gte, eq, sql } from 'drizzle-orm';
  * prompt — hidden tests, other submissions, and player identity never do.
  */
 
-export type AiLanguage = 'javascript' | 'python';
+/** F12: AI review speaks the same four languages the judge runs. */
+export type AiLanguage = Language;
 
 export type AiReview = {
   verdict: 'fail' | 'pass';

@@ -9,7 +9,7 @@ import { getCurrentUser } from '../../lib/session';
 /** Real protocol facts (decisions D3/D6) — no sample stats. */
 function ProtocolCard() {
   const rows: Array<[string, string]> = [
-    ['Supported runtimes', 'JavaScript · Python'],
+    ['Supported runtimes', 'JavaScript · Python · Java · C++'],
     ['Match clock', '10:00, server-owned'],
     ['Verdicts', 'The server is the referee'],
   ];
@@ -102,6 +102,8 @@ export default async function LoginPage() {
             <div className="flex flex-wrap gap-2">
               <Chip>JavaScript</Chip>
               <Chip>Python</Chip>
+              <Chip>Java</Chip>
+              <Chip>C++</Chip>
               <Chip variant="accent">Rated 1v1</Chip>
             </div>
           </div>

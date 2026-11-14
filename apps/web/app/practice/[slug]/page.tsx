@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { entryName } from '@coding-arena/shared';
 import { SplitShell } from '../../../components/SplitShell';
 import { CodePanel, SampleTests } from '../../../components/CodePanel';
 import { Chip, Eyebrow, Headline } from '../../../components/ui';
@@ -97,7 +98,7 @@ function ChallengeView({ challenge }: { challenge: ChallengeDetail }) {
           <p className="whitespace-pre-wrap font-grotesk text-sm leading-relaxed text-carbon">
             {challenge.statement}
           </p>
-          <SampleTests tests={challenge.visibleTests} entryFunction={challenge.entryFunctions.javascript} />
+          <SampleTests tests={challenge.visibleTests} entryFunction={entryName(challenge.entryFunctions.javascript)} />
         </>
       }
       right={<CodePanel challenge={challenge} />}

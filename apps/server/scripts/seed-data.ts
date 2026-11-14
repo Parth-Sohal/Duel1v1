@@ -11,14 +11,28 @@ export type SeedChallenge = {
   title: string;
   difficulty: 'easy' | 'medium' | 'hard';
   tags: string[];
-  entryFunctions: { javascript: string; python: string };
+  entryFunctions: EntryFunctions;
   statement: string;
-  starterCode: { javascript: string; python: string };
-  reference: { javascript: string; python: string };
+  starterCode: Partial<Record<Language, string>>;
+  reference: Partial<Record<Language, string>>;
   tests: SeedTest[];
 };
 
+/** After the F12 merge every published challenge carries all four languages. */
+export type FourLanguageSeed = SeedChallenge & {
+  entryFunctions: {
+    javascript: string;
+    python: string;
+    java: FunctionSignature;
+    cpp: FunctionSignature;
+  };
+  starterCode: Record<Language, string>;
+  reference: Record<Language, string>;
+};
+
 import { POOL2 } from './seed-data-pool2.js';
+import { F12 } from './seed-data-f12.js';
+import type { EntryFunctions, FunctionSignature, Language } from '@coding-arena/shared';
 
 /** Batch 1: the owner-signed-off launch eight (F04). */
 const BATCH1: SeedChallenge[] = [
@@ -433,5 +447,37 @@ The missing integer.`,
   },
 ];
 
-/** The full pool: batch 1 (launch eight) + batch 2 (the 30-50 pool expansion). */
-export const CHALLENGES: SeedChallenge[] = [...BATCH1, ...POOL2];
+/** Merge the F12 addendum into a base challenge; all four fields become exact. */
+function withF12(base: SeedChallenge): FourLanguageSeed {
+  const add = F12[base.slug];
+  if (!add) throw new Error(`F12 data missing for ${base.slug}`);
+  const signature: FunctionSignature = {
+    name: add.entry.name,
+    params: [...add.entry.params],
+    returns: add.entry.returns,
+  };
+  return {
+    ...base,
+    entryFunctions: {
+      javascript: typeof base.entryFunctions.javascript === 'string' ? base.entryFunctions.javascript : '',
+      python: typeof base.entryFunctions.python === 'string' ? base.entryFunctions.python : '',
+      java: { ...signature },
+      cpp: { ...signature },
+    },
+    starterCode: {
+      javascript: base.starterCode.javascript ?? '',
+      python: base.starterCode.python ?? '',
+      java: add.starterCode.java,
+      cpp: add.starterCode.cpp,
+    },
+    reference: {
+      javascript: base.reference.javascript ?? '',
+      python: base.reference.python ?? '',
+      java: add.reference.java,
+      cpp: add.reference.cpp,
+    },
+  };
+}
+
+/** The full pool: batch 1 (launch eight) + batch 2 (the 30-50 pool expansion), with F12. */
+export const CHALLENGES: FourLanguageSeed[] = [...BATCH1, ...POOL2].map(withF12);

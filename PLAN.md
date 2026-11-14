@@ -218,7 +218,7 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
 - **F9 Random matchmaking and leaderboard:** queue behind a small interface (in-memory first). Start only when enough people are online at the same time. **Shipped 2026-11-14** — real ANYONE queue + `/leaderboard` Rankings; single-server in-memory queue, quick matches with `room_id = NULL`, top-30 real-human ladder.
 - **F10 AI code analysis:** complexity estimate and suggestions, server-enforced daily cap, player code treated as untrusted text, never includes hidden tests or other players' code.
 - **F11 UI polish:** full game-style look, animations, responsive and accessibility pass.
-- **F12 More languages:** C++ and Java (starter code, Judge0 language IDs, time and memory multipliers, reference solutions for every challenge).
+- **F12 More languages:** C++ and Java (starter code, Judge0 language IDs, time and memory multipliers, reference solutions for every challenge). **Shipped 2026-11-14** — four-language challenge versions, typed function harness, fair per-language CPU budgets, and the editor's syntax highlighting + auto-pairing.
 
 **Test gate (per feature)**
 - [x] F9: two strangers get paired; recently played challenges avoided; no one is paired with themselves
@@ -228,7 +228,11 @@ Status key: `[ ]` not started · `[~]` in progress · `[x]` tested and reported
       hidden data in prompts (**closed 2026-11-13** as `docs/features/F11-ai-analysis.md`,
       `f11-ai-test.ts` 25/25 with live provider tests; Gemini, durable 3/day cap, hints-only)
 - [ ] F11: screens match the design; usable on mobile; keyboard and contrast checks pass
-- [ ] F12: every challenge passes with a reference solution in each new language; time multipliers keep duels fair
+- [x] F12: every challenge passes with a reference solution in each new language; time multipliers keep duels fair
+      (**closed 2026-11-14** as `docs/features/F12-more-languages.md`,
+      `f12-verify.ts` 40/40 Java + 40/40 C++ through the real judge, `challenge-verify.ts`
+      40/40 published versions × 4 languages, `f12-editor-check.ts` 20/20; 40 v2 versions applied
+      without touching v1 or submissions)
 
 ---
 

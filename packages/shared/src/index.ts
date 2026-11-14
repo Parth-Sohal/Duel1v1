@@ -64,18 +64,66 @@ export const AVATAR_MAX_BYTES = 150_000;
 /** Cache-busting param key appended to the served avatar URL. */
 export const AVATAR_URL_PATH = '/avatar';
 
-/** Code-execution languages at launch (decision D3). Judge0 language ids: 93 = Node.js 18.15.0, 100 = Python 3.12.5. */
-export const LANGUAGES = ['javascript', 'python'] as const;
+/** Code-execution languages (decision D3 for JS/Python; F12 adds C++ and Java).
+ * Judge0 language ids: 93 = Node.js 18.15.0, 100 = Python 3.12.5,
+ * 91 = Java (JDK 17.0.6), 105 = C++ (GCC 14.1.0). */
+export const LANGUAGES = ['javascript', 'python', 'java', 'cpp'] as const;
 export type Language = (typeof LANGUAGES)[number];
-export const JUDGE0_LANGUAGE_IDS: Record<Language, number> = { javascript: 93, python: 100 };
+export const JUDGE0_LANGUAGE_IDS: Record<Language, number> = {
+  javascript: 93,
+  python: 100,
+  java: 91,
+  cpp: 105,
+};
+/** Short chip labels used across the workbench. */
+export const LANGUAGE_LABELS: Record<Language, string> = {
+  javascript: 'JS',
+  python: 'PY',
+  java: 'JAVA',
+  cpp: 'C++',
+};
+
+/**
+ * Static-language contract for the function-call harness. `number` maps to a
+ * 64-bit signed integer in Java/C++ (challenge values can exceed 32 bits).
+ */
+export type FunctionParamType = 'number' | 'string' | 'boolean' | 'number[]' | 'string[]' | 'number[][]';
+
+/** What the player must write in Java/C++: a typed function with a known name. */
+export type FunctionSignature = {
+  name: string;
+  params: FunctionParamType[];
+  returns: FunctionParamType;
+};
+
+/** Dynamic languages store just the function name; static languages store the full signature. */
+export type EntryPoint = string | FunctionSignature;
+export type EntryFunctions = Partial<Record<Language, EntryPoint>>;
+
+/** The function name for display/validation, from either entry-point shape. */
+export function entryName(entry: EntryPoint | undefined): string {
+  if (!entry) return '';
+  return typeof entry === 'string' ? entry : entry.name;
+}
+
+/** A typed signature for Java/C++, or null when the stored value is only a name. */
+export function entrySignature(entry: EntryPoint | undefined): FunctionSignature | null {
+  if (!entry || typeof entry === 'string') return null;
+  return entry;
+}
 
 /** Practice mode (docs/features/F04-practice-mode.md). */
-/** Base CPU limit per language run; Python gets the multiplier below.
+/** Base CPU limit per language run; per-language multipliers keep duels fair.
  * 5 s (not the contest-standard 2 s): the free shared judge box can inflate
  * measured CPU time under load, and a false "time limit" is worse than a slow
  * honest verdict. Real solutions run in well under 1 s. */
 export const RUN_TIME_LIMIT_MS = 5000;
-export const RUN_TIME_MULTIPLIER_PY = 1.5;
+export const RUN_TIME_MULTIPLIERS: Record<Language, number> = {
+  javascript: 1,
+  python: 1.5,
+  java: 1.5,
+  cpp: 1,
+};
 /** Uniform memory cap the server passes to the judge. */
 export const RUN_MEMORY_LIMIT_MB = 256;
 /** Per-user submission rate limit (Run + Submit combined). */

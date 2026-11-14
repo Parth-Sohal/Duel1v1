@@ -1,6 +1,6 @@
 import 'server-only';
 import { cookies } from 'next/headers';
-import { SESSION_COOKIE } from '@coding-arena/shared';
+import { SESSION_COOKIE, type EntryFunctions, type Language } from '@coding-arena/shared';
 
 /**
  * Practice-mode data access for the web app (docs/features/F04-practice-mode.md).
@@ -28,8 +28,8 @@ export type ChallengeDetail = {
   tags: string[];
   version: number;
   statement: string;
-  entryFunctions: { javascript: string; python: string };
-  starterCode: { javascript: string; python: string };
+  entryFunctions: EntryFunctions;
+  starterCode: Partial<Record<Language, string>>;
   timeLimitMs: number;
   memoryLimitMb: number;
   visibleTests: VisibleTest[];

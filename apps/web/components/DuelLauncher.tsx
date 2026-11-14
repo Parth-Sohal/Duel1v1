@@ -569,7 +569,7 @@ export function DuelLauncher({ displayName }: { displayName: string }) {
               <div className="mt-5 flex flex-wrap gap-2">
                 <Chip>Server referee</Chip>
                 <Chip>Judge0 sandbox</Chip>
-                <Chip>JS · PY</Chip>
+                <Chip>JS · PY · JAVA · C++</Chip>
               </div>
 
               <p className="mt-auto pt-6 font-mono text-[10px] uppercase tracking-[0.1em] text-muted">

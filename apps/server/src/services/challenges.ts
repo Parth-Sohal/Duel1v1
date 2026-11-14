@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import { challengeVersions, challenges, submissions } from '../db/schema.js';
+import { LANGUAGES, type EntryFunctions, type FunctionParamType, type FunctionSignature } from '@coding-arena/shared';
 
 /**
  * Practice-mode data access (docs/features/F04-practice-mode.md).
@@ -8,6 +9,39 @@ import { challengeVersions, challenges, submissions } from '../db/schema.js';
 
 /** The exact jsonb shape stored per challenge version. The judge calls the player's function with `args`. */
 export type TestCase = { args: unknown[]; expected: string; hidden: boolean };
+
+const PARAM_TYPES: FunctionParamType[] = ['number', 'string', 'boolean', 'number[]', 'string[]', 'number[][]'];
+
+/** Defensive validation for a typed Java/C++ entry signature stored in jsonb. */
+function isSignature(value: unknown): value is FunctionSignature {
+  if (!value || typeof value !== 'object') return false;
+  const s = value as Record<string, unknown>;
+  return (
+    typeof s.name === 'string' &&
+    /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(s.name) &&
+    Array.isArray(s.params) &&
+    s.params.every((t) => typeof t === 'string' && PARAM_TYPES.includes(t as FunctionParamType)) &&
+    typeof s.returns === 'string' &&
+    PARAM_TYPES.includes(s.returns as FunctionParamType)
+  );
+}
+
+/**
+ * The per-language entry points from a version row (F12: JS/Python keep a
+ * name; Java/C++ store a typed signature). Unknown or malformed entries are
+ * dropped, so a language without a valid entry point reports
+ * `entry_point_missing` instead of running with a guessed signature.
+ */
+export function entryFunctionsOf(v: { entryFunctions: unknown }): EntryFunctions {
+  const raw = (v.entryFunctions ?? {}) as Record<string, unknown>;
+  const out: EntryFunctions = {};
+  for (const language of LANGUAGES) {
+    const entry = raw[language];
+    if (typeof entry === 'string' && entry.length > 0) out[language] = entry;
+    else if (isSignature(entry)) out[language] = entry;
+  }
+  return out;
+}
 
 /**
  * THE single hidden-test filter. Everything serialized to a player goes
