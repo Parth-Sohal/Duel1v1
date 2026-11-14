@@ -10,8 +10,12 @@ import { Avatar } from './Avatar';
  * Top system bar across both columns: nav links grouped left, status items
  * grouped right (never sharing a cramped row), user chip on the dark cell.
  * Secondary nav hides below xl; status hides below md; mobile gets a menu.
+ *
+ * `split="even"` makes the two header cells 50/50 so the seam lines up with a
+ * balanced two-panel screen (the duel setup). Every other page keeps 7/5.
  */
-export function Header() {
+export function Header({ split = 'default' }: { split?: 'default' | 'even' }) {
+  const even = split === 'even';
   const [user, setUser] = useState<UserPublic | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -52,7 +56,7 @@ export function Header() {
   const skillMapLink = (
     <Link
       href="/profile"
-      className={`flex items-center gap-1.5 whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:text-accent ${
+      className={`inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:text-accent ${
         onProfile ? 'underline decoration-accent decoration-2 underline-offset-8' : ''
       }`}
     >
@@ -64,7 +68,7 @@ export function Header() {
   const dailyLink = (
     <Link
       href="/daily"
-      className={`whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:text-accent ${
+      className={`inline-flex min-h-11 items-center whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:text-accent ${
         onDaily ? 'underline decoration-accent decoration-2 underline-offset-8' : ''
       }`}
     >
@@ -75,7 +79,7 @@ export function Header() {
   const practiceLink = (
     <Link
       href="/practice"
-      className={`whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:text-accent ${
+      className={`inline-flex min-h-11 items-center whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:text-accent ${
         onPractice ? 'underline decoration-accent decoration-2 underline-offset-8' : ''
       }`}
     >
@@ -86,7 +90,7 @@ export function Header() {
   const playLink = (
     <Link
       href="/duel"
-      className={`whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:text-accent ${
+      className={`inline-flex min-h-11 items-center whitespace-nowrap font-mono text-xs font-semibold uppercase tracking-[0.1em] text-carbon transition-colors hover:text-accent ${
         onPlay ? 'underline decoration-accent decoration-2 underline-offset-8' : ''
       }`}
     >
@@ -138,9 +142,13 @@ export function Header() {
 
   return (
     <header className="z-20 w-full border-b border-line-dark/20 bg-cream">
-      <div className="grid w-full grid-cols-1 lg:grid-cols-12">
+      <div className={`grid w-full grid-cols-1 ${even ? 'lg:grid-cols-2' : 'lg:grid-cols-12'}`}>
         {/* Cream cell: nav left, status right */}
-        <div className="flex h-16 items-center justify-between gap-6 border-b border-line-light px-5 sm:px-8 lg:col-span-7 lg:border-b-0 lg:border-r lg:px-10">
+        <div
+          className={`flex h-16 items-center justify-between gap-6 border-b border-line-light px-5 sm:px-8 lg:border-b-0 lg:border-r lg:px-10 ${
+            even ? 'lg:col-span-1' : 'lg:col-span-7'
+          }`}
+        >
           <div className="flex min-w-0 items-center gap-4 sm:gap-6">
             <Link
               href="/"
@@ -151,16 +159,25 @@ export function Header() {
               <span className="font-extrabold text-accent">{'}'}</span>
             </Link>
             <div aria-hidden className="hidden h-4 w-px bg-line-light sm:block" />
-            <nav aria-label="Primary" className="hidden items-center gap-5 sm:flex">
+            <nav
+              aria-label="Primary"
+              className={`hidden items-center xl:flex ${even ? 'gap-3' : 'gap-5'}`}
+            >
               {skillMapLink}
               {playLink}
               {dailyLink}
               {practiceLink}
-              <span className="hidden xl:inline">{plannedNav('Rankings')}</span>
+              <span className={even ? 'hidden min-[1400px]:inline' : 'hidden xl:inline'}>
+                {plannedNav('Rankings')}
+              </span>
             </nav>
           </div>
-          <div className="hidden flex-shrink-0 items-center gap-4 md:flex">
-            <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
+          <div className="hidden flex-shrink-0 items-center gap-4 xl:flex">
+            <span
+              className={`${
+                even ? 'hidden' : 'hidden 2xl:inline'
+              } font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-muted`}
+            >
               Arena // v0.1
             </span>
             <span className="border border-carbon/25 bg-sand/60 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-carbon">
@@ -173,7 +190,7 @@ export function Header() {
             aria-label="Menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
-            className="flex h-10 w-10 flex-shrink-0 flex-col items-center justify-center gap-1.5 lg:hidden"
+            className="flex h-11 w-11 flex-shrink-0 flex-col items-center justify-center gap-1.5 xl:hidden"
           >
             <span className="h-0.5 w-5 bg-carbon" />
             <span className="h-0.5 w-5 bg-carbon" />
@@ -182,7 +199,11 @@ export function Header() {
         </div>
 
         {/* Dark cell: the signed-in player (desktop) */}
-        <div className="hidden h-16 items-center justify-end gap-6 border-b border-line-dark bg-carbon px-6 sm:px-8 lg:col-span-5 lg:flex lg:px-10">
+        <div
+          className={`hidden h-16 items-center justify-end gap-6 border-b border-line-dark bg-carbon px-6 sm:px-8 lg:flex lg:px-10 ${
+            even ? 'lg:col-span-1' : 'lg:col-span-5'
+          }`}
+        >
           {chip}
           {signInLink}
           {signOutButton}
@@ -191,7 +212,7 @@ export function Header() {
 
       {/* Mobile dropdown */}
       {menuOpen && (
-        <div className="absolute inset-x-0 top-full z-30 flex flex-col gap-4 border-b border-line-light bg-cream px-5 py-5 lg:hidden">
+        <div className="absolute inset-x-0 top-full z-30 flex flex-col gap-4 border-b border-line-light bg-cream px-5 py-5 xl:hidden">
           {skillMapLink}
           {playLink}
           {dailyLink}

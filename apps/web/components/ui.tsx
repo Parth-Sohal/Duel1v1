@@ -57,32 +57,53 @@ export function Headline({
   );
 }
 
-/** Stat block: small mono label over a big headline numeral. */
+/**
+ * Stat block: small mono label over a value.
+ *
+ * `metric` (default) is for real numbers — big headline styling.
+ * `fact` is for short explanatory facts ("10:00", "Sandboxed", "+29 to +31"):
+ * mono, small, so protocol trivia never reads as a headline statistic.
+ *
+ * Both variants wrap instead of truncating: long values and long labels stay
+ * inside narrow split-panel cells at every width.
+ */
 export function Stat({
   label,
   value,
   dark = false,
+  variant = 'metric',
 }: {
   label: string;
   value: string | number;
   dark?: boolean;
+  variant?: 'metric' | 'fact';
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <span
-        className={`truncate font-mono text-xs uppercase tracking-[0.1em] ${
+        className={`font-mono text-xs uppercase leading-snug tracking-[0.1em] [overflow-wrap:anywhere] ${
           dark ? 'text-neutral-400' : 'text-muted'
         }`}
       >
         {label}
       </span>
-      <span
-        className={`font-headline text-3xl font-extrabold leading-none md:text-4xl ${
-          dark ? 'text-cream' : 'text-carbon'
-        }`}
-      >
-        {value}
-      </span>
+      {variant === 'fact' ? (
+        <span
+          className={`font-mono text-sm font-semibold uppercase leading-snug tracking-[0.05em] [overflow-wrap:anywhere] ${
+            dark ? 'text-cream' : 'text-carbon'
+          }`}
+        >
+          {value}
+        </span>
+      ) : (
+        <span
+          className={`font-headline text-3xl font-extrabold leading-none [overflow-wrap:anywhere] md:text-4xl ${
+            dark ? 'text-cream' : 'text-carbon'
+          }`}
+        >
+          {value}
+        </span>
+      )}
     </div>
   );
 }

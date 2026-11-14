@@ -5,12 +5,11 @@ import { Chip, Eyebrow, Headline, Stat } from '../components/ui';
 import { getCurrentUser } from '../lib/session';
 
 /**
- * F10 landing page (docs/features/F10-hardening.md): the brutalist hero a
- * stranger sees first — what the game is, the three doors (PLAY, PRACTICE,
- * TODAY'S CHALLENGE, PLAY VS KERN), and the real duels-played counter from
- * the events table. No sample numbers — the count starts at 0 and only
- * moves with real matches. Signed-in players go straight to their profile;
- * the landing is the signed-out front door (also fully viewable signed-out).
+ * Signed-out landing page: what the game is, the two primary doors, a
+ * CSS-built illustrative duel preview, and concise links to every way in.
+ * The duels-played count is the only number on the page and comes from the
+ * real `GET /api/stats/public` request — no sample players, scores or live
+ * status. Signed-in players still go straight to their profile.
  */
 
 const API_ORIGIN = process.env.API_ORIGIN ?? 'http://localhost:4000';
@@ -24,6 +23,88 @@ async function duelsPlayed(): Promise<number | null> {
   } catch {
     return null;
   }
+}
+
+const DOORS = [
+  {
+    label: 'Duel a rival',
+    href: '/duel',
+    note: 'Invite a friend with a code. First accepted solution wins.',
+  },
+  {
+    label: 'Play vs KERN',
+    href: '/duel',
+    note: 'The house bot. Same engine, practice only — no points.',
+  },
+  {
+    label: 'Practice floor',
+    href: '/practice',
+    note: 'Every challenge, no clock. Run samples, submit for real.',
+  },
+  {
+    label: 'Today’s challenge',
+    href: '/daily',
+    note: 'One problem for the whole arena, once a day.',
+  },
+] as const;
+
+/** Small CSS-built mock — explicitly illustrative, not live data. */
+function DuelPreview() {
+  return (
+    <figure aria-labelledby="duel-preview-caption" className="border border-line-dark bg-surface">
+      <div aria-hidden>
+        <div className="flex items-center justify-between gap-3 border-b border-line-dark px-4 py-3">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-400">
+            Same problem · same clock
+          </span>
+          <Chip variant="dark">Sample</Chip>
+        </div>
+
+        <div className="grid grid-cols-2">
+          <div className="border-r border-line-dark p-4">
+            <span className="flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-300">
+              <span className="inline-block h-1.5 w-1.5 bg-accent" />
+              You
+            </span>
+            <div className="mt-3 space-y-1.5">
+              <span className="block h-1.5 w-4/5 bg-neutral-700" />
+              <span className="block h-1.5 w-3/5 bg-neutral-700" />
+              <span className="block h-1.5 w-4/5 bg-neutral-700" />
+            </div>
+          </div>
+          <div className="p-4">
+            <span className="flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-300">
+              <span className="inline-block h-1.5 w-1.5 bg-neutral-600" />
+              Rival
+            </span>
+            <div className="mt-3 space-y-1.5">
+              <span className="block h-1.5 w-3/5 bg-neutral-700" />
+              <span className="block h-1.5 w-4/5 bg-neutral-700" />
+              <span className="block h-1.5 w-2/5 bg-neutral-700" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t border-line-dark px-4 py-3">
+          <span className="font-mono text-lg font-bold tabular-nums text-cream">10:00</span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-neutral-400">Tests</span>
+            <span className="flex gap-1">
+              {Array.from({ length: 5 }, (_, i) => (
+                <span key={i} className="h-2.5 w-2.5 border border-neutral-600" />
+              ))}
+            </span>
+          </div>
+        </div>
+      </div>
+      <figcaption
+        id="duel-preview-caption"
+        className="border-t border-line-dark px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-400"
+      >
+        Illustrative preview — not a live match
+      </figcaption>
+    </figure>
+  );
 }
 
 export default async function LandingPage() {
@@ -40,95 +121,83 @@ export default async function LandingPage() {
           <div className="mb-4">
             <Eyebrow marker="square">Coding arena · 1v1 · same problem, same clock</Eyebrow>
           </div>
-          <Headline className="mb-8">
+          <Headline className="mb-6 text-[clamp(1.95rem,5.2vw,4.75rem)]">
             Two players.
             <br />
             One problem.
             <br />
             Ten minutes.
           </Headline>
-          <p className="mb-10 max-w-md font-grotesk text-base leading-relaxed text-muted">
-            You both get the same coding challenge at the same second. First to pass every test wins the swing —
-            the loser pays what they have, never more. Your code runs only inside the judge sandbox; the server
-            referees everything.
+          <p className="mb-8 max-w-md font-grotesk text-base leading-relaxed text-muted">
+            Same challenge, same clock, same judge. First to pass every test takes the swing. Your
+            code runs only inside the judge sandbox — the server keeps the score.
           </p>
 
-          <Link
-            href="/duel"
-            className="block w-full max-w-md bg-accent px-6 py-5 text-center font-mono text-sm font-bold uppercase tracking-[0.15em] text-carbon transition-colors hover:bg-[#ff6231]"
-          >
-            Play — duel a rival
-          </Link>
+          <div className="flex max-w-md flex-col gap-3 sm:flex-row">
+            <Link
+              href="/duel"
+              className="flex min-h-12 flex-1 items-center justify-center bg-accent px-6 py-4 text-center font-mono text-sm font-bold uppercase tracking-[0.15em] text-carbon transition-colors hover:bg-[#ff6231]"
+            >
+              Start a duel
+            </Link>
+            <Link
+              href="/practice"
+              className="flex min-h-12 flex-1 items-center justify-center border border-carbon px-6 py-4 text-center font-mono text-sm font-bold uppercase tracking-[0.15em] text-carbon transition-colors hover:bg-carbon hover:text-cream"
+            >
+              Explore practice
+            </Link>
+          </div>
 
-          <div className="mt-10 grid max-w-md grid-cols-3 gap-6 border-t border-line-light pt-6">
+          <div className="mt-10 grid max-w-md grid-cols-2 gap-x-8 gap-y-6 border-t border-line-light pt-6">
             <Stat label="Duels played" value={played === null ? '—' : played.toLocaleString('en-US')} />
-            <Stat label="Judge" value="Sandboxed" />
-            <Stat label="Points floor" value="Zero" />
+            <Stat label="Match clock" value="10:00" variant="fact" />
+            <Stat label="Win swing" value="+29–31" variant="fact" />
+            <Stat label="Points floor" value="0 — never negative" variant="fact" />
           </div>
         </>
       }
       right={
-        <div className="mx-auto w-full max-w-md">
-          <div className="mb-4">
+        <div className="mx-auto flex w-full max-w-md flex-col">
+          <div className="mb-4 flex items-center justify-between gap-3">
             <Eyebrow dark marker="notch">
-              Three doors in
+              Inside a duel
             </Eyebrow>
+            <Chip variant="dark">Illustrative</Chip>
           </div>
 
-          <Link href="/duel" className="group block border-b border-line-dark py-5">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="font-mono text-base font-bold uppercase tracking-[0.05em] text-cream transition-colors group-hover:text-accent">
-                Duel a rival
-              </h3>
-              <Chip variant="dark">PvP</Chip>
-            </div>
-            <p className="mt-2 font-grotesk text-sm leading-relaxed text-neutral-400">
-              Create a room, send the invite code. Both ready, host starts, the clock decides.
-            </p>
-          </Link>
+          <DuelPreview />
 
-          <Link href="/duel" className="group block border-b border-line-dark py-5">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="font-mono text-base font-bold uppercase tracking-[0.05em] text-cream transition-colors group-hover:text-accent">
-                Play vs KERN
-              </h3>
-              <Chip variant="dark">Practice</Chip>
-            </div>
-            <p className="mt-2 font-grotesk text-sm leading-relaxed text-neutral-400">
-              Nobody online? The house bot duels at a human pace. No points, no stats — pure reps.
-            </p>
-          </Link>
+          <nav aria-label="Ways to play" className="mt-8 border-t border-line-dark">
+            {DOORS.map((door) => (
+              <Link
+                key={door.label}
+                href={door.href}
+                className="group flex min-h-14 items-center justify-between gap-4 border-b border-line-dark py-3.5"
+              >
+                <span className="min-w-0">
+                  <span className="block font-mono text-sm font-bold uppercase tracking-[0.05em] text-cream transition-colors group-hover:text-accent">
+                    {door.label}
+                  </span>
+                  <span className="mt-1 block font-grotesk text-xs leading-relaxed text-neutral-400">
+                    {door.note}
+                  </span>
+                </span>
+                <span
+                  aria-hidden
+                  className="flex-shrink-0 font-mono text-base text-neutral-600 transition-colors group-hover:text-accent"
+                >
+                  →
+                </span>
+              </Link>
+            ))}
+          </nav>
 
-          <Link href="/practice" className="group block border-b border-line-dark py-5">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="font-mono text-base font-bold uppercase tracking-[0.05em] text-cream transition-colors group-hover:text-accent">
-                Practice floor
-              </h3>
-              <Chip variant="dark">Solo</Chip>
-            </div>
-            <p className="mt-2 font-grotesk text-sm leading-relaxed text-neutral-400">
-              Every challenge, no clock pressure. Run the samples, submit against the hidden tests.
-            </p>
-          </Link>
-
-          <Link href="/daily" className="group block py-5">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="font-mono text-base font-bold uppercase tracking-[0.05em] text-cream transition-colors group-hover:text-accent">
-                Today&rsquo;s challenge
-              </h3>
-              <Chip variant="dark">Daily</Chip>
-            </div>
-            <p className="mt-2 font-grotesk text-sm leading-relaxed text-neutral-400">
-              One problem for the whole arena each day, no repeats while the pool lasts. Build the streak.
-            </p>
-          </Link>
-
-          <div className="mt-8 flex items-center gap-4 border-t border-line-dark pt-5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-500">
-            <Link href="/terms" className="transition-colors hover:text-accent">
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-400">
+            <Link href="/terms" className="inline-flex min-h-10 items-center py-2 transition-colors hover:text-accent">
               Terms
             </Link>
             <span aria-hidden>/</span>
-            <Link href="/privacy" className="transition-colors hover:text-accent">
+            <Link href="/privacy" className="inline-flex min-h-10 items-center py-2 transition-colors hover:text-accent">
               Privacy
             </Link>
             <span aria-hidden>/</span>
