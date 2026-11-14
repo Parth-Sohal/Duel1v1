@@ -49,7 +49,8 @@ state are the F04 systems exactly. The daily page itself only adds the banner
 - Target: 30–50 published challenges. **Done 2026-11-02: 40 published** (the
   launch eight + 32 new: 12 easy / 12 medium / 8 hard in
   `scripts/seed-data-pool2.ts`). Expected answers are computed by the freeze —
-  both language references must agree byte-for-byte through the real judge —
+  both language references (the pool predates F12's Java/C++) must agree
+  byte-for-byte through the real judge —
   and new slugs insert UNPUBLISHED until the owner signs off (done via the
   generated review doc `docs/reports/challenge-pool2-review.md`, rendered from
   the DB). The verify script remains the gate — every version's reference

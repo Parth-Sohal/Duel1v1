@@ -1,6 +1,8 @@
 # F12 — Java, C++ and editor intelligence
 
-**Iteration 5 feature. Status: in build (branch `feature/F12-more-languages`).**
+**Iteration 5 feature. Status: shipped 2026-11-14** (branches
+`feature/F12-more-languages` and `feature/F12-prod-smoke`; merged to `main` as
+`de09231` and `c63b023`).
 
 Real Java and C++ support in practice and duels, four visibly distinct keyword
 colours (JS / Python / Java / C++), and auto-completing brackets and quotes.
@@ -124,6 +126,10 @@ use v2.
 Hidden tests never leave the server: run/submit redact hidden inputs and expected
 values exactly as before, and the Java/C++ wrappers change only how code executes,
 not what is returned to the browser.
+
+`f12-prod-smoke.ts` stays in the repo as the permanent live-deploy gate. It
+creates its own throwaway smoke account and deletes it (with cascaded
+submissions) through `DATABASE_URL`.
 
 ## Build note
 

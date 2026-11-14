@@ -10,11 +10,11 @@ One living report for the whole project. Update it at the end of every iteration
 |---|---|
 | Project | Coding Arena |
 | Goal | 1v1 timed coding duels, built as a real product |
-| Stack | Next.js (Vercel), Node + Fastify + Socket.IO (Render), PostgreSQL (Neon), Judge0 (later) |
+| Stack | Next.js (Vercel), Node + Fastify + Socket.IO (Render), PostgreSQL (Neon), Judge0 hosted CE |
 | Method | Iterations: build one, test it, report, then start the next |
-| Current iteration | Iteration 4 complete — soft launch live; post-sign-off owner requests shipped (challenge pool grown to 40, verify 40/40; practice roster restyled); iteration 5 (growth) starts from real feedback |
+| Current iteration | Iteration 5 in progress — F9 matchmaking, AI analysis (F11 doc) and F12 four-language support shipped; UI polish remains. Iteration 4 is the last fully closed iteration. |
 | Live URLs | Web: https://duel1v1.vercel.app · Server: https://duel1v1.onrender.com |
-| Last updated | 2026-11-02 |
+| Last updated | 2026-11-15 |
 
 ## 2. Decisions made so far
 
@@ -26,7 +26,7 @@ One living report for the whole project. Update it at the end of every iteration
 | 4 | PostgreSQL as the only database | Relational data and transactions | 2026-10-27 |
 | 5 | Challenge tests stored as `jsonb` in each challenge version | Variable number of tests per challenge, one record to load | 2026-10-27 |
 | 6 | Friend rooms and bot opponent before random matchmaking | Avoid the empty-queue problem | 2026-10-26 |
-| 7 | Launch languages: JavaScript and Python; C++ and Java in Iteration 5 | Tests are language-independent; two languages keeps per-language verification manageable | 2026-10-27 |
+| 7 | Launch languages: JavaScript and Python; C++ and Java in Iteration 5 | Tests are language-independent; two languages keeps per-language verification manageable | 2026-10-27 (Java/C++ shipped by F12, 2026-11-14) |
 | 8 | Email + password accounts in Iteration 1, simple version (no email verification) | Owner-approved scope addition; real accounts without an email provider | 2026-10-28 |
 | 9 | Avatar uploads stored as base64 bytes in our own database | No third-party storage service; works on free tiers; photos are ≤256×256 and size-capped | 2026-10-28 |
 | 10 | An upload always wins over the Google photo | The player owns their picture; Google sign-in only fills an empty avatar | 2026-10-28 |
@@ -53,7 +53,7 @@ One living report for the whole project. Update it at the end of every iteration
 | 2 | Practice mode | F3 challenges, editor, run code | **Done** (2026-10-29) |
 | 3 | Friend duels | F4 rooms, F5 match engine, F6 history | **Done** (2026-10-30, owner-reviewed) |
 | 4 | Soft launch | F7 bot + daily challenge, F8 hardening | **Done** (2026-11-02, owner-signed-off) |
-| 5 | Growth | F9 matchmaking, F10 AI analysis, F11 UI polish, F12 C++ and Java | In progress — F9 + AI analysis + F12 languages shipped (2026-11-14 / 2026-11-13); UI polish remains |
+| 5 | Growth | F9 matchmaking, AI analysis (F11 doc), UI polish, F12 C++ and Java | In progress — F9 matchmaking, AI analysis and F12 four-language support shipped (2026-11-14 / 2026-11-13); UI polish remains |
 
 ## 5. Iteration reports
 
@@ -177,20 +177,20 @@ Branch: `feature/F04-practice-mode` (F04, `docs/features/F04-practice-mode.md`)
 Status: passed
 
 #### What was built
-- **Judging model (decision 11, revised by owner):** the player writes a named function and **returns** the answer. The server composes their code with a per-language harness (`composeSource`): the harness reads a JSON array of call arguments from stdin, calls the function, and prints the return value as one JSON line; the last stdout line is compared against the frozen answer. Serialization is byte-identical across JS (`JSON.stringify`) and Python (`json.dumps` with tight separators).
+- **Judging model (decision 11, revised by owner):** the player writes a named function and **returns** the answer. The server composes their code with a per-language harness (`composeSource`): the harness reads a JSON array of call arguments from stdin, calls the function, and prints the return value as one JSON line; the last stdout line is compared against the frozen answer. Serialization is byte-identical across JS (`JSON.stringify`) and Python (`json.dumps` with tight separators). F12 later extended the same contract to Java and C++ with typed signatures.
 - **Executor:** Judge0, free public CE endpoint `https://ce.judge0.com` (decision D4, no key) — env-only swap to self-hosted ("option 2") or a keyed endpoint later. Player code only ever runs in the judge sandbox; the server never executes it.
 - **Data:** migrations 0004 (`challenges`, `challenge_versions`, `submissions`) + 0005 (`entry_functions` jsonb per version). Versions are immutable; `current_version` names the live one.
 - **APIs:** list (with per-player solved/attempts), detail (visible tests only), run (visible samples, not saved), submit (all tests, saved, hidden redacted), own-history. All cookie-authed.
 - **Rate limit:** 20 Run+Submit per user per 5 minutes (in-memory, same pattern as login limiter).
 - **UI:** `/practice` (protocol block + challenge roster with solved markers, empty/offline states) and `/practice/[slug]` (statement + sample arguments/expected on cream; workbench on dark — JS/PY chips with per-language scratchpads, monospace editor with tab indent, RUN/SUBMIT, expandable per-test results with error tracebacks; hidden tests sealed to pass/fail). PRACTICE added to the header nav.
-- **Seeds:** 8 original challenges (no copied wording), each with reference solutions in JS + Python and frozen expected answers; owner signed off and all published.
+- **Seeds:** 8 original challenges (no copied wording), each with reference solutions in JS + Python and frozen expected answers; owner signed off and all published. (F12 later added Java/C++ v2 versions for all 40 challenges.)
 
 #### Test results
 
 | Area | Test | Result | Notes |
 |---|---|---|---|
 | API | Full practice matrix | 35/35 pass | `f04-api-test.ts` (auth, list/detail, hidden-test leak checks, run/submit verdicts, history, validation, rate limit) |
-| Seeds | Reference solutions in JS + Python | 82/82 pass | Both languages agree on every frozen answer; nothing hand-typed |
+| Seeds | Reference solutions in JS + Python | 82/82 pass | Both languages agree on every frozen answer; nothing hand-typed. F12 later re-verified all 40 challenges × 4 languages (2026-11-14) |
 | UI | Server-rendered practice round-trip | 21/21 pass | `f04-ui-smoke.ts` through the real web proxy incl. a judged run |
 | Gates | Infinite loop → time limit; 1 GB touched allocation → OOM kill; outbound network from a submission blocked | pass | Verified empirically through the real judge |
 | Build | Server `tsc`, web `next build`, lint | pass | Production build green |
@@ -303,7 +303,7 @@ Status: passed (bot + daily + streak owner-reviewed 2026-10-30; hardening matrix
 | Bot | Duel vs KERN end to end | 29/29 pass | `f08-bot-test.ts` (lone player full duel, win + loss paths, D6 zero deltas, restart-safety, single KERN row) |
 | Daily | Daily pick + solve round-trip | 21/21 pass | `f09-daily-test.ts` (same challenge for everyone, deterministic, no-repeat, solved state, streaks null signed-out) |
 | Streak | Streak bar | (in 28/28) pass | Simulated 3-day run: current = 3, max = 3, cells correct; rival stays 0 |
-| Pool | Challenge verification | 8/8 pass → **40/40** (pool grown 2026-11-02) | `challenge-verify.ts` via real Judge0 (both languages); 32 new challenges (12 easy / 12 medium / 8 hard) frozen, owner-signed-off, published |
+| Pool | Challenge verification | 8/8 pass → **40/40** (pool grown 2026-11-02) | `challenge-verify.ts` via real Judge0 (both languages); 32 new challenges (12 easy / 12 medium / 8 hard) frozen, owner-signed-off, published. F12 later re-verified all 40 × 4 languages (2026-11-14) |
 | Hardening | F10 matrix | 30/30 pass | `f10-hardening-test.ts` (all five limits burst-tested concurrently with exact allowed/429 splits; events recorded; owner guards 403/401; feedback validation + cap + reading list; landing/terms/privacy 200 signed-out; secrets-in-git audit) |
 | Build | Server tsc, lint, web build | pass | Web build green after removing `sendDefaultPii` (not in the Sentry SDK types; PII off by default anyway) |
 
@@ -399,4 +399,4 @@ yes | no, because ...
 
 ## 8. Backlog
 
-Ideas parked until after the current iteration: Redis and load balancer, job queue, Elo ratings, more languages, Facebook login, user-created challenges, tournaments, payments.
+Ideas parked until after the current iteration: Redis and load balancer, job queue, Elo ratings, languages beyond C++ and Java (e.g. Go, Rust), Facebook login, user-created challenges, tournaments, payments.

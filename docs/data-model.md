@@ -36,19 +36,19 @@ Each challenge version has a `tests` column holding an array. A challenge can ha
 
 ```json
 [
-  { "input": "2 7 11 15\n9", "expected": "0 1", "hidden": false },
-  { "input": "3 2 4\n6",     "expected": "1 2", "hidden": false },
-  { "input": "3 3\n6",       "expected": "0 1", "hidden": true  }
+  { "args": [[2, 7, 11, 15], 9], "expected": "[0,1]", "hidden": false },
+  { "args": [[3, 2, 4], 6],      "expected": "[1,2]", "hidden": false },
+  { "args": [[3, 3], 6],         "expected": "[0,1]", "hidden": true  }
 ]
 ```
 
 Rules:
-- `input` is what the program reads from stdin; `expected` is what it must print. Plain text, same format for every challenge and language.
+- `args` is the JSON array of arguments passed to the player's entry function; `expected` is the compact JSON serialization of its return value. The harness prints that value as the last non-empty stdout line, and the server compares the two strings byte-for-byte.
+- Entry points and starter code are stored per language in `entry_functions` and `starter_code`: `javascript`, `python`, `java`, `cpp`. In JS/Python an entry point is a function name; Java/C++ store a typed signature (F12), with `number` mapping to 64-bit `long` / `long long`.
 - Tests are ordered by array position. "Test 3 of 12" means index 2 of 12.
 - A version is **immutable**. Changing a statement or any test creates a new version (copy, then edit). Old matches keep pointing at the exact version they used.
-- Output comparison ignores trailing whitespace and trailing blank lines.
-- **Hidden tests never leave the server.** One server function, `getPublicChallenge(versionId)`, returns the statement, starter code, and only the tests with `hidden: false`. Browser responses must only be built through that function.
-- Validate the `tests` shape when a version is created (array, non-empty, each item has string `input`, string `expected`, boolean `hidden`, at least one non-hidden sample).
+- **Hidden tests never leave the server.** One server function, `visibleTests(tests)`, returns only the tests with `hidden: false`. Browser responses must only be built through that function.
+- Validate the `tests` shape when a version is created (array, non-empty, each item has an array `args`, a string `expected`, and a boolean `hidden`, with at least one non-hidden sample). Validate `entry_functions` and `starter_code` keys against the supported languages.
 - Keep each test small. If a challenge ever needs very large inputs, move them to file storage and keep a reference in the test object. Not needed for v1.
 
 ## 4. Schema (PostgreSQL)
@@ -62,10 +62,12 @@ CREATE TYPE room_status       AS ENUM ('open', 'full', 'in_match', 'closed');
 CREATE TYPE match_status      AS ENUM ('waiting', 'active', 'finished');
 CREATE TYPE match_result      AS ENUM ('win', 'draw', 'forfeit');
 CREATE TYPE submission_kind   AS ENUM ('run', 'submit');
+CREATE TYPE ai_context        AS ENUM ('practice', 'duel');
 CREATE TYPE submission_status AS ENUM (
   'queued', 'running', 'accepted', 'wrong_answer', 'time_limit',
   'memory_limit', 'runtime_error', 'compile_error', 'internal_error'
 );
+CREATE TYPE language          AS ENUM ('javascript', 'python', 'java', 'cpp'); -- F12: java + cpp (0016)
 
 -- Players ------------------------------------------------------------
 CREATE TABLE users (
@@ -82,6 +84,8 @@ CREATE TABLE users (
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now()
 );
+-- Exactly one bot row (KERN)
+CREATE UNIQUE INDEX users_is_bot_single ON users (is_bot) WHERE is_bot;
 
 -- Store a hash of the session token, never the raw token
 CREATE TABLE sessions (
@@ -93,58 +97,98 @@ CREATE TABLE sessions (
 );
 CREATE INDEX sessions_user_idx ON sessions (user_id);
 
+-- Manual accounts and uploaded avatars --------------------------------
+CREATE TABLE credentials (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  password_hash text NOT NULL,                       -- salted scrypt hash, never the password
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE avatars (
+  user_id    uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  mime       text NOT NULL,
+  data       text NOT NULL,                          -- base64, ≤256×256 and size-capped
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 -- Challenges ---------------------------------------------------------
 CREATE TABLE challenges (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug         text NOT NULL UNIQUE,
-  title        text NOT NULL,
-  difficulty   difficulty NOT NULL,
-  tags         text[] NOT NULL DEFAULT '{}',
-  is_published boolean NOT NULL DEFAULT false,
-  created_at   timestamptz NOT NULL DEFAULT now()
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug            text NOT NULL UNIQUE,
+  title           text NOT NULL,
+  difficulty      difficulty NOT NULL,
+  tags            text[] NOT NULL,
+  current_version integer NOT NULL DEFAULT 1,        -- names the live challenge_versions row
+  is_published    boolean NOT NULL DEFAULT false,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE challenge_versions (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   challenge_id    uuid NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
   version         integer NOT NULL,
-  statement_md    text NOT NULL,
-  starter_code    jsonb NOT NULL DEFAULT '{}',    -- {"javascript": "...", "python": "..."}
-  tests           jsonb NOT NULL                  -- see section 3
-                  CHECK (jsonb_typeof(tests) = 'array' AND jsonb_array_length(tests) >= 1),
-  time_limit_ms   integer NOT NULL DEFAULT 2000,
-  memory_limit_kb integer NOT NULL DEFAULT 128000,
-  is_current      boolean NOT NULL DEFAULT true,
+  statement       text NOT NULL,
+  entry_functions jsonb NOT NULL,                    -- { javascript, python, java, cpp }; Java/C++ hold typed signatures (F12)
+  starter_code    jsonb NOT NULL,                    -- { javascript, python, java, cpp }
+  time_limit_ms   integer NOT NULL,
+  memory_limit_mb integer NOT NULL,
+  tests           jsonb NOT NULL,                    -- { args, expected, hidden }[] — see section 3
   created_at      timestamptz NOT NULL DEFAULT now(),
   UNIQUE (challenge_id, version)
 );
--- At most one current version per challenge
-CREATE UNIQUE INDEX one_current_version
-  ON challenge_versions (challenge_id) WHERE is_current;
 
 CREATE TABLE daily_challenges (
-  day          date PRIMARY KEY,
-  challenge_id uuid NOT NULL REFERENCES challenges(id)
+  day                  date PRIMARY KEY,
+  challenge_version_id uuid NOT NULL REFERENCES challenge_versions(id) ON DELETE CASCADE,
+  created_at           timestamptz NOT NULL DEFAULT now()
+);
+
+-- Product events and feedback (F10) -----------------------------------
+CREATE TABLE events (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  type       text NOT NULL,                          -- signup | match_started | submit | daily_view | feedback
+  user_id    uuid REFERENCES users(id) ON DELETE SET NULL,
+  match_id   uuid,
+  meta       jsonb NOT NULL DEFAULT '{}',            -- coarse facts only, no PII
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX events_type_created_idx ON events (type, created_at);
+
+CREATE TABLE feedback (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message    text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 -- Rooms and matches --------------------------------------------------
 CREATE TABLE rooms (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   invite_code text NOT NULL UNIQUE,
-  host_id     uuid NOT NULL REFERENCES users(id),
+  host_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  guest_id    uuid REFERENCES users(id) ON DELETE SET NULL, -- null = open seat
   status      room_status NOT NULL DEFAULT 'open',
+  difficulty  difficulty,                             -- null = ANY
+  ready_state jsonb NOT NULL DEFAULT '{}',            -- { "<userId>": true }
   created_at  timestamptz NOT NULL DEFAULT now(),
   expires_at  timestamptz NOT NULL
 );
+CREATE INDEX rooms_host_idx ON rooms (host_id);
 
 CREATE TABLE matches (
   id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  room_id              uuid REFERENCES rooms(id),
-  challenge_version_id uuid NOT NULL REFERENCES challenge_versions(id),
+  room_id              uuid REFERENCES rooms(id) ON DELETE SET NULL, -- null = matchmaking/bot
+  challenge_version_id uuid NOT NULL REFERENCES challenge_versions(id) ON DELETE RESTRICT,
   status               match_status NOT NULL DEFAULT 'waiting',
   result_type          match_result,                  -- null until finished
-  winner_id            uuid REFERENCES users(id),     -- null until decided; stays null for a draw
+  winner_id            uuid REFERENCES users(id) ON DELETE CASCADE, -- null until decided; stays null for a draw
+  swing_points         integer,                       -- D5 random 29..31 locked at start
   is_bot_match         boolean NOT NULL DEFAULT false,
+  bot_will_solve       boolean,                       -- F08 plan; null for human matches
+  bot_solve_at         timestamptz,
   started_at           timestamptz,
   ends_at              timestamptz,                   -- server-owned deadline (start + 10 min)
   finished_at          timestamptz,
@@ -152,51 +196,50 @@ CREATE TABLE matches (
   CHECK (status <> 'finished' OR result_type IS NOT NULL),
   CHECK (result_type <> 'win' OR winner_id IS NOT NULL)
 );
-CREATE INDEX matches_status_ends_idx ON matches (status, ends_at);
+CREATE INDEX matches_room_idx ON matches (room_id);
 
 CREATE TABLE match_players (
   match_id        uuid NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
-  user_id         uuid NOT NULL REFERENCES users(id),
-  seat            smallint NOT NULL CHECK (seat IN (1, 2)),
-  points_before   integer,
+  user_id         uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  seat            integer NOT NULL CHECK (seat IN (1, 2)),
+  points_before   integer NOT NULL,
   points_after    integer,
-  disconnected_at timestamptz,                        -- for the forfeit grace period
-  PRIMARY KEY (match_id, user_id),
-  UNIQUE (match_id, seat)
+  disconnected_at timestamptz                         -- for the forfeit grace period
 );
-CREATE INDEX match_players_user_idx ON match_players (user_id, match_id);
 
 -- Submissions --------------------------------------------------------
 CREATE TABLE submissions (
   id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id              uuid NOT NULL REFERENCES users(id),
-  match_id             uuid REFERENCES matches(id),   -- null = practice mode
-  challenge_version_id uuid NOT NULL REFERENCES challenge_versions(id),
+  user_id              uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  challenge_id         uuid NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+  challenge_version_id uuid NOT NULL REFERENCES challenge_versions(id) ON DELETE CASCADE,
   kind                 submission_kind NOT NULL,
-  language             text NOT NULL,
-  code                 text NOT NULL CHECK (char_length(code) <= 50000),
-  status               submission_status NOT NULL DEFAULT 'queued',
-  passed_count         integer,
-  total_count          integer,
-  results              jsonb,                         -- per-test outcome, see below
-  runtime_ms           integer,
-  memory_kb            integer,
-  judge_token          text,                          -- reference id from the code runner
-  received_at          timestamptz NOT NULL DEFAULT now(),  -- server clock, used for tie-breaks
-  judged_at            timestamptz
+  language             language NOT NULL,             -- javascript | python | java | cpp
+  status               submission_status NOT NULL,
+  passed               integer NOT NULL,
+  total                integer NOT NULL,
+  results              jsonb NOT NULL,                -- redacted per-test outcome, see below
+  source_code          text NOT NULL,
+  judge_latency_ms     integer,
+  match_id             uuid REFERENCES matches(id) ON DELETE SET NULL, -- null = practice
+  created_at           timestamptz NOT NULL DEFAULT now()  -- server clock, used for tie-breaks
 );
-CREATE INDEX submissions_match_idx ON submissions (match_id, received_at);
-CREATE INDEX submissions_user_idx  ON submissions (user_id, received_at DESC);
+CREATE INDEX submissions_user_created_idx  ON submissions (user_id, created_at);
+CREATE INDEX submissions_match_created_idx ON submissions (match_id, created_at);
 
 -- AI feedback --------------------------------------------------------
 CREATE TABLE ai_reviews (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id       uuid NOT NULL REFERENCES users(id),
-  submission_id uuid NOT NULL REFERENCES submissions(id),
-  feedback      jsonb NOT NULL,                       -- {complexity, suggestions, ...}
+  user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  challenge_id  uuid NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+  submission_id uuid REFERENCES submissions(id) ON DELETE SET NULL, -- null for editor-scratch reviews
+  context       ai_context NOT NULL,                  -- practice | duel
+  language      language NOT NULL,
+  verdict       jsonb NOT NULL,                       -- parsed review JSON
+  model         text NOT NULL,
   created_at    timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX ai_reviews_user_day_idx ON ai_reviews (user_id, created_at);
+CREATE INDEX ai_reviews_user_created_idx ON ai_reviews (user_id, created_at);
 ```
 
 ### Per-test results (`submissions.results`)
@@ -205,12 +248,14 @@ Stored by test position, so "passed 7/12" and "failed test 8" are easy:
 
 ```json
 [
-  { "i": 0, "status": "accepted", "ms": 12, "kb": 9800 },
-  { "i": 1, "status": "wrong_answer", "ms": 10, "kb": 9700 }
+  { "pass": true,  "status": "accepted",     "hidden": false,
+    "args": [[2, 7, 11, 15], 9], "expected": "[0,1]", "stdout": "[0,1]" },
+  { "pass": false, "status": "wrong_answer", "hidden": true,
+    "stderr": "Traceback..." }
 ]
 ```
 
-When building a response for the browser: for tests with `hidden: false`, include input, expected, and actual output. For hidden tests, include only the index and status.
+When building a response for the browser: for tests with `hidden: false`, include `args`, `expected`, and actual `stdout`; for hidden tests, include only `pass`, `status`, and `hidden` (plus a traceback when one exists). Never include hidden `args` or `expected`.
 
 ## 5. Key rules the database helps enforce
 
@@ -231,7 +276,7 @@ COMMIT;
 
 **Points never go negative.** `CHECK (points >= 0)` (re-added in migration 0010) backs the app rule: the loser/draw/forfeit delta is clamped to what the player actually has (`−min(penalty, points_before)`), while the winner always takes the full swing.
 
-**Tie-break by arrival time.** Rank competing passes by `submissions.received_at`, not by when the code runner finished.
+**Tie-break by arrival time.** Rank competing passes by `submissions.created_at`, not by when the code runner finished.
 
 **Recent-challenge rule needs no extra table.**
 
@@ -268,6 +313,6 @@ Pick a random published challenge not in either player's list; if none is left, 
 | 2 | `challenges`, `challenge_versions`, `submissions` |
 | 3 | `rooms`, `matches`, `match_players`, history indexes |
 | 4 | `daily_challenges`, bot user row |
-| 5 | `ai_reviews`, leaderboard indexes |
+| 5 | `ai_reviews` + `ai_context` (0015); `java`/`cpp` values on the `language` enum (0016, F12) |
 
 Each table is created in the migration for the iteration that needs it, so the database grows with the build. Never edit an applied migration; add a new one.

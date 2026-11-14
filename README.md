@@ -6,7 +6,7 @@ Two players get the same coding challenge and race to solve it in 10 minutes. Th
 
 ## What players can do
 
-- **Practice** — 40 hand-checked challenges in JavaScript, Python, Java and C++, run or submit through Judge0, with sample-test feedback while hidden tests stay server-side.
+- **Practice** — 40 hand-checked challenges in JavaScript, Python, Java and C++, run or submit through Judge0, with sample-test feedback while hidden tests stay server-side. The workbench keeps a per-language scratchpad, gives each language its own keyword colour, and auto-pairs brackets and quotes.
 - **Friend duels** — create a room, share an 8-character invite code, ready up, and play a live 1v1 with server-owned time.
 - **Anyone matchmaking** — join the real queue and the server pairs you with the next compatible human. No bots, no invented opponents.
 - **KERN bot** — practice against the house bot through the same match engine. Bot duels move no points and count no stats.
@@ -110,6 +110,8 @@ POST /api/challenges/:slug/run|submit
 ```
 
 Player code is wrapped in a function-call harness: the player writes a named function and returns the answer, and the harness calls it with JSON arguments. Java and C++ use a typed signature (numbers are 64-bit `long` / `long long`) but the same JSON contract. Code runs only in the Judge0 sandbox with CPU, memory, process, and output limits; network access is blocked.
+
+F12 shipped through new immutable challenge versions: the 40 published challenges now serve four-language `v2` rows, while `v1` and older JS/Python submissions stay untouched.
 
 ### Leaderboard
 

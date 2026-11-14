@@ -5,6 +5,12 @@ Branch: feature/F04-practice-mode
 Depends on: F01 (sessions, auth)
 PLAN reference: Iteration 2, "F3 Challenges and practice" (this doc = that feature)
 
+> **Extended by F12 (2026-11-14).** The live contract now has four languages:
+> `entry_functions` and `starter_code` carry `java` and `cpp` as well, the
+> `language` enum includes both, and the pool is 40 challenges in immutable v2
+> versions. The two-language details below are the F04 record as of 2026-10-29;
+> the current language contract is in `docs/features/F12-more-languages.md`.
+
 ## Goal
 
 A player picks a challenge, reads it, writes code in a browser editor, runs it against the visible tests, submits against everything, and sees results. Solo practice — the warm-up before duels.

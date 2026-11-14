@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-11-14] F12 Java + C++ and editor intelligence (iteration 5)
+- Added: **Java 91 (JDK 17.0.6) and C++ 105 (GCC 14.1.0)** as real practice/duel languages through the same typed function-call harness; numbers are 64-bit (`long` / `long long`), and all four harnesses emit compact JSON for byte-for-byte comparison against the frozen answer
+- Added: **four-language challenge versions** — migration 0016 adds `java` and `cpp` to the `language` enum; `f12-upgrade-versions.ts` created immutable v2 rows for all 40 published challenges (Java/C++ signatures, starter code, reference solutions), preserving statements/tests/limits and leaving v1 submissions untouched
+- Added: **fair timing** — base 5 s × multiplier (JS 1.0, Python 1.5, Java 1.5, C++ 1.0); validation goes through `entryFunctionsOf`, so practice, duels, daily and AI review accept exactly the languages the current version defines
+- Added: **editor intelligence** — JS/PY/JAVA/C++ chips with per-language scratchpads, dependency-free tokenizer with distinct keyword hues (JS orange, Python yellow, Java blue, C++ purple), bracket/quote auto-pairing, pair-aware Backspace, selection wrapping, and Tab indent
+- Fixed: Sentry build unblock — `@sentry/nextjs` / `@sentry/server-utils` upgraded from 11.10.0 to 11.12.0 because the published 11.10.0 tarballs omitted imported files; env-gated and a no-op without a DSN
+- Gate: `f12-verify.ts` **40/40 Java and 40/40 C++** (201 judge calls each), `challenge-verify.ts` **40/40 × 4 languages**, editor check **20/20**, `f12-prod-smoke.ts` **12/12** against the live deploy (v2 served, Java submit 5/5 accepted, C++ run accepted, hidden results sealed); server build, web typecheck/lint/build green
+
 ## [2026-11-14] F9 random matchmaking + leaderboard (iteration 5)
 - Added: **ANYONE is a real queue** — `POST/GET/DELETE /api/duels/matchmaking` behind a small `MatchmakingQueue` interface (process memory on the single game server; no table, no Redis). A 2 s pairing pass takes the oldest compatible pair and creates a normal match with **`room_id = NULL`**, so the existing engine, timer, judge, points and history all apply unchanged
 - Added: queue rules — one entry per player, `ANY` pairs with every difficulty while two concrete difficulties must match (the match uses the concrete side), F6 repeat rule still avoids recently played challenges, the one-live-duel guard is re-checked before pairing, and no player can ever pair with themselves
